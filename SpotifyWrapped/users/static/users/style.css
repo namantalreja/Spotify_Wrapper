@@ -1,0 +1,67 @@
+/* Main Container */
+.container-fluid {
+    min-height: 100vh;
+    background-color: #e874bc; /* Light pastel blue background */
+}
+
+/* Form styling */
+.login-form-column {
+    background-color: #e874bc;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card {
+    border: none;
+}
+
+.card-header h3 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+.container p-3 my-3 {
+    color: #e874bc;
+}
+
+.btn {
+    background: linear-gradient(90deg, rgba(255,182,193,1) 0%, rgba(255,105,180,1) 100%);
+    color: #e874bc;
+    border-radius: 5px;
+    padding: 0.75rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+}
+
+.btn:hover {
+    background: rgba(255,105,180,0.8);
+}
+
+.card-footer a {
+    color: #e874bc;
+    font-size: 0.9rem;
+}
+
+.card-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Right side image */
+.earth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+.earth-container img {
+    max-width: 100%;
+    height: auto;
+}

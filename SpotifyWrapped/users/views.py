@@ -15,6 +15,74 @@ from django.contrib.messages.views import SuccessMessageMixin
 
 from .forms import UpdateUserForm, UpdateProfileForm
 
+#ab 19-76
+from django.conf import settings
+from spotipy.oauth2 import SpotifyOAuth
+from django.http import JsonResponse
+
+from spotipy import Spotify
+
+def spotify_auth(request):
+    sp_oauth = SpotifyOAuth(
+        client_id=settings.SPOTIFY_CLIENT_ID,
+        client_secret=settings.SPOTIFY_CLIENT_SECRET,
+        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        scope="user-top-read"
+    )
+    auth_url = sp_oauth.get_authorize_url()
+    return redirect(auth_url)
+
+
+def spotify_callback(request):
+    code = request.GET.get('code')  # Get the authorization code from URL
+    sp_oauth = SpotifyOAuth(
+        client_id=settings.SPOTIFY_CLIENT_ID,
+        client_secret=settings.SPOTIFY_CLIENT_SECRET,
+        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        scope="user-top-read"
+    )
+    try:
+        token_info = sp_oauth.get_access_token(code)
+        request.session['token_info'] = token_info  # Store token in session
+        request.session.modified = True  # Ensure the session is saved
+        return redirect('wrapped_button')  # Redirect back to wrapped page
+    except Exception as e:
+        print("Error obtaining token:", e)
+        return redirect('spotify_auth')
+
+    # Exchange code for an access token
+    token_info = sp_oauth.get_access_token(code)
+    request.session['token_info'] = token_info  # Store token in session
+    return redirect('generate_wrapped')  # Redirect to the Wrapped generation view
+
+def wrapped_button(request):
+    # Render the template with the button
+    return render(request, 'wrapped_button.html')
+
+def generate_wrapped(request):
+    # Check if the token_info is in the session
+    token_info = request.session.get('token_info')
+    if token_info is None or 'access_token' not in token_info:
+        # Redirect to Spotify authentication if token is missing
+        return redirect('spotify_auth')
+    
+    # Initialize the Spotify client with the access token
+    sp = Spotify(auth=token_info['access_token'])
+
+    # Fetch top tracks and artists
+    top_tracks = sp.current_user_top_tracks(limit=10, time_range='long_term')
+    top_artists = sp.current_user_top_artists(limit=10, time_range='long_term')
+    playlists = sp.current_user_playlists(limit=5)  # Fetch user playlists for example
+    
+    # Example data response (customize as needed)
+    wrapped_data = {
+        "top_tracks": [track['name'] for track in top_tracks['items']],
+        "top_artists": [artist['name'] for artist in top_artists['items']],
+        "playlists": [playlist['name'] for playlist in playlists['items']]
+    }
+    
+    return JsonResponse(wrapped_data)
+
 def home(request):
     return render(request, 'users/home.html')
 

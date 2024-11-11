@@ -41,7 +41,10 @@ EMAIL_HOST_PASSWORD = str(os.getenv('EMAIL_PASSWORD'))
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-
+#ab 45-47
+SPOTIFY_CLIENT_ID = '5809152ba393482999dd283eb8df82a2'
+SPOTIFY_CLIENT_SECRET = 'a042cb09bc3b44e2808e808b3295a7ad'
+SPOTIFY_REDIRECT_URI = 'http://localhost:8000/spotify/callback/'
 
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 30
 
@@ -55,6 +58,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'SpotifyWrapped',
 ]
 
 MIDDLEWARE = [

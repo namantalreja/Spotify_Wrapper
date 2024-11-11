@@ -22,4 +22,11 @@ class Profile(models.Model):
             img.thumbnail(new_img)
             img.save(self.avatar.path)
 
+#ab
+class WrappedSummary(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    top_tracks = models.JSONField()  # Store list of top track names
+    top_artists = models.JSONField()  # Store list of top artist names
+    created_at = models.DateTimeField(auto_now_add=True)
+
 

@@ -1,0 +1,51 @@
+<!-- templates/wrapped_button.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Spotify Wrapped</title>
+    <style>
+        #wrapped-data {
+            margin-top: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .data-section {
+            margin-bottom: 15px;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Your Spotify Wrapped</h1>
+    <button id="generate-wrapped">Generate My Wrapped</button>
+    <div id="wrapped-data"></div>
+
+    <script>
+        $('#generate-wrapped').on('click', function() {
+            // Send a GET request to the /generate_wrapped/ URL
+            $.get("{% url 'generate_wrapped' %}", function(data) {
+                $('#wrapped-data').empty();  // Clear any previous data
+
+                // Display top tracks
+                $('#wrapped-data').append('<div class="data-section"><h2>Top Tracks</h2><ul></ul></div>');
+                data.top_tracks.forEach(track => {
+                    $('#wrapped-data ul').last().append('<li>' + track + '</li>');
+                });
+
+                // Display top artists
+                $('#wrapped-data').append('<div class="data-section"><h2>Top Artists</h2><ul></ul></div>');
+                data.top_artists.forEach(artist => {
+                    $('#wrapped-data ul').last().append('<li>' + artist + '</li>');
+                });
+
+                // Display playlists
+                $('#wrapped-data').append('<div class="data-section"><h2>Your Playlists</h2><ul></ul></div>');
+                data.playlists.forEach(playlist => {
+                    $('#wrapped-data ul').last().append('<li>' + playlist + '</li>');
+                });
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                console.error("AJAX error:", textStatus, errorThrown);
+            });
+        });
+    </script>
+</body>
+</html>

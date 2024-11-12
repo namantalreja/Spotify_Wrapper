@@ -28,10 +28,10 @@ class SpotifyData(models.Model):
     top_artists = models.JSONField()
     top_tracks = models.JSONField()
     playlists = models.JSONField()
+    insights = models.TextField(blank=True, null=True)  # New field for insights
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.timestamp}"
-
 
 

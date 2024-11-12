@@ -1,46 +1,144 @@
 <!-- templates/wraps_list.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Your Spotify Wraps</title>
     <style>
-        /* Basic styling for better presentation */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .wrap-list {
-            list-style-type: none;
+        /* Reset some default browser styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
             padding: 0;
         }
-        .wrap-item {
-            padding: 10px;
-            border-bottom: 1px solid #ccc;
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            padding: 20px;
         }
-        .wrap-item a {
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1DB954; /* Spotify Green */
+        }
+
+        /* Grid layout for wrap cards */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .wrap-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .wrap-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .wrap-card h2 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #1DB954;
+            text-align: center;
+        }
+
+        .wrap-card p {
+            font-size: 0.95em;
+            color: #555;
+            text-align: center;
+        }
+
+        .wrap-card a {
+            margin-top: 15px;
             text-decoration: none;
-            color: #007BFF;
+            color: #fff;
+            background-color: #1DB954;
+            padding: 10px 15px;
+            border-radius: 4px;
+            text-align: center;
+            transition: background-color 0.2s;
         }
-        .wrap-item a:hover {
-            text-decoration: underline;
+
+        .wrap-card a:hover {
+            background-color: #14833b;
+        }
+
+        .no-wraps {
+            text-align: center;
+            font-size: 1em;
+            color: #777;
+            margin-top: 50px;
+        }
+
+        .generate-button {
+            display: block;
+            margin: 30px auto 0;
+            text-decoration: none;
+            color: #fff;
+            background-color: #1DB954;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+
+        .generate-button:hover {
+            background-color: #14833b;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+
+            .wrap-card h2 {
+                font-size: 1.1em;
+            }
+
+            .wrap-card p {
+                font-size: 0.9em;
+            }
+
+            .generate-button {
+                padding: 10px 15px;
+                font-size: 0.95em;
+            }
         }
     </style>
 </head>
 <body>
     <h1>Your Spotify Wraps</h1>
     {% if wraps %}
-        <ul class="wrap-list">
+        <div class="grid-container">
             {% for wrap in wraps %}
-                <li class="wrap-item">
-                    <a href="{% url 'wrap_detail' wrap.id %}">
-                        Wrapped on {{ wrap.timestamp|date:"F j, Y, g:i a" }}
-                    </a>
-                </li>
+                <div class="wrap-card">
+                    <h2>Wrapped on {{ wrap.timestamp|date:"F j, Y, g:i a" }}</h2>
+                    <!-- If you have any summary stats, you can include them here -->
+                    <!-- Example:
+                    <p>Total Tracks: {{ wrap.top_tracks.count }}</p>
+                    <p>Total Artists: {{ wrap.top_artists.count }}</p>
+                    -->
+                    <a href="{% url 'wrap_detail' wrap.id %}">View Details</a>
+                </div>
             {% endfor %}
-        </ul>
+        </div>
     {% else %}
-        <p>You have not generated any Spotify Wraps yet.</p>
+        <p class="no-wraps">You have not generated any Spotify Wraps yet.</p>
     {% endif %}
-    <a href="{% url 'generate_data' %}">Generate New Wrap</a>
+    <a href="{% url 'generate_data' %}" class="generate-button">Generate New Wrap</a>
 </body>
 </html>

@@ -1,67 +1,207 @@
 <!-- templates/wrap_detail.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Spotify Wrap - {{ wrap.timestamp|date:"F j, Y, g:i a" }}</title>
     <style>
-        /* Basic styling for better presentation */
+        /* Reset some default browser styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1, h2, h3 {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
             color: #333;
+            padding: 20px;
         }
-        ul {
-            list-style-type: disc;
-            padding-left: 20px;
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1DB954; /* Spotify Green */
         }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            border-bottom: 2px solid #1DB954;
+            padding-bottom: 10px;
+            color: #1DB954;
+        }
+
+        /* Grid layout for tiles */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .card img {
+            width: 100%;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .card h3 {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #555;
+            text-align: center;
+        }
+
+        .card p {
+            font-size: 0.9em;
+            color: #777;
+            text-align: center;
+        }
+
+        .track-artists {
+            margin-top: 5px;
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .insights {
+            background-color: #fff;
+            border-left: 4px solid #1DB954;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
         .back-link {
-            margin-top: 20px;
             display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #1DB954;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: #14833b;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .grid-container {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+
+            .card h3 {
+                font-size: 1em;
+            }
+
+            .card p, .track-artists {
+                font-size: 0.8em;
+            }
         }
     </style>
 </head>
 <body>
     <h1>Spotify Wrap - {{ wrap.timestamp|date:"F j, Y, g:i a" }}</h1>
 
-    <h2>Top Artists</h2>
-    {% if top_artists %}
-        <ul>
-            {% for artist in top_artists %}
-                <li>{{ artist.name }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No top artists data available.</p>
-    {% endif %}
+    <section>
+        <h2>Insights</h2>
+        {% if insights_html %}
+            <div class="insights">
+                {{ insights_html|safe }}
+            </div>
+        {% else %}
+            <p>No insights available.</p>
+        {% endif %}
+    </section>
 
-    <h2>Top Tracks</h2>
-    {% if top_tracks %}
-        <ul>
-            {% for track in top_tracks %}
-                <li>
-                    {{ track.name }} by 
-                    {% for artist in track.artists %}
-                        {{ artist.name }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No top tracks data available.</p>
-    {% endif %}
+    <section>
+        <h2>Top Artists</h2>
+        {% if top_artists %}
+            <div class="grid-container">
+                {% for artist in top_artists %}
+                    <div class="card">
+                        {% if artist.image_url %}
+                            <img src="{{ artist.image_url }}" alt="{{ artist.name }} Image">
+                        {% else %}
+                            <img src="https://via.placeholder.com/150" alt="No Image Available">
+                        {% endif %}
+                        <h3>{{ artist.name }}</h3>
+                        <!-- Additional artist details can be added here -->
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No top artists data available.</p>
+        {% endif %}
+    </section>
 
-    <h2>Playlists</h2>
-    {% if playlists %}
-        <ul>
-            {% for playlist in playlists %}
-                <li>{{ playlist.name }}</li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>No playlists data available.</p>
-    {% endif %}
+    <section>
+        <h2>Top Tracks</h2>
+        {% if top_tracks %}
+            <div class="grid-container">
+                {% for track in top_tracks %}
+                    <div class="card">
+                        {% if track.album_image_url %}
+                            <img src="{{ track.album_image_url }}" alt="{{ track.name }} Album Art">
+                        {% else %}
+                            <img src="https://via.placeholder.com/150" alt="No Image Available">
+                        {% endif %}
+                        <h3>{{ track.name }}</h3>
+                        <p class="track-artists">by 
+                            {% for artist in track.artists %}
+                                {{ artist }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </p>
+                        <!-- Additional track details can be added here -->
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No top tracks data available.</p>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Playlists</h2>
+        {% if playlists %}
+            <div class="grid-container">
+                {% for playlist in playlists %}
+                    <div class="card">
+                        {% if playlist.image_url %}
+                            <img src="{{ playlist.image_url }}" alt="{{ playlist.name }} Cover">
+                        {% else %}
+                            <img src="https://via.placeholder.com/150" alt="No Image Available">
+                        {% endif %}
+                        <h3>{{ playlist.name }}</h3>
+                        <!-- Additional playlist details can be added here -->
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No playlists data available.</p>
+        {% endif %}
+    </section>
 
     <a href="{% url 'wraps_list' %}" class="back-link">← Back to Wraps List</a>
 </body>

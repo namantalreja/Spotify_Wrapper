@@ -14,15 +14,18 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 import requests
+import google.generativeai as genai
+import os
 from django.shortcuts import redirect, render
 from django.conf import settings
 from django.utils import timezone
 from .models import SpotifyData
 import base64
 import urllib.parse
-
 from .forms import UpdateUserForm, UpdateProfileForm
-
+import markdown  # Import the markdown library
+genai.configure(api_key=settings.GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
 def home(request):
     return render(request, 'users/home.html')
 
@@ -68,7 +71,6 @@ def spotify_callback(request):
 
     return redirect('generate_data')
 
-
 @login_required
 def wraps_list(request):
     """
@@ -79,6 +81,7 @@ def wraps_list(request):
         'wraps': wraps,
     }
     return render(request, 'users/wraps_list.html', context)
+
 
 
 @login_required
@@ -93,11 +96,47 @@ def wrap_detail(request, wrap_id):
     top_tracks = wrap.top_tracks.get('items', [])
     playlists = wrap.playlists.get('items', [])
 
+    # Process artists to include image URLs
+    processed_top_artists = []
+    for artist in top_artists:
+        image_url = artist['images'][0]['url'] if artist.get('images') else None
+        processed_top_artists.append({
+            'name': artist['name'],
+            'image_url': image_url,
+        })
+
+    # Process tracks to include album image URLs
+    processed_top_tracks = []
+    for track in top_tracks:
+        album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
+        artists = [artist['name'] for artist in track['artists']]
+        processed_top_tracks.append({
+            'name': track['name'],
+            'artists': artists,
+            'album_image_url': album_image_url,
+        })
+
+    # Process playlists to include image URLs
+    processed_playlists = []
+    for playlist in playlists:
+        image_url = playlist['images'][0]['url'] if playlist.get('images') else None
+        processed_playlists.append({
+            'name': playlist['name'],
+            'image_url': image_url,
+        })
+
+    # Convert Markdown insights to HTML
+    if wrap.insights:
+        insights_html = markdown.markdown(wrap.insights)
+    else:
+        insights_html = None
+
     context = {
         'wrap': wrap,
-        'top_artists': top_artists,
-        'top_tracks': top_tracks,
-        'playlists': playlists,
+        'insights_html': insights_html,  # Add insights_html to context
+        'top_artists': processed_top_artists,
+        'top_tracks': processed_top_tracks,
+        'playlists': processed_playlists,
     }
     return render(request, 'users/wrap_detail.html', context)
 
@@ -114,31 +153,87 @@ def generate_data(request):
     # Fetch Top Artists
     top_artists_url = 'https://api.spotify.com/v1/me/top/artists'
     top_artists_response = requests.get(top_artists_url, headers=headers)
+    if top_artists_response.status_code != 200:
+        messages.error(request, 'Failed to fetch top artists.')
+        return redirect('wraps_list')
     top_artists = top_artists_response.json()
 
     # Fetch Top Tracks
     top_tracks_url = 'https://api.spotify.com/v1/me/top/tracks'
     top_tracks_response = requests.get(top_tracks_url, headers=headers)
+    if top_tracks_response.status_code != 200:
+        messages.error(request, 'Failed to fetch top tracks.')
+        return redirect('wraps_list')
     top_tracks = top_tracks_response.json()
 
     # Fetch Playlists
     playlists_url = 'https://api.spotify.com/v1/me/playlists'
     playlists_response = requests.get(playlists_url, headers=headers)
+    if playlists_response.status_code != 200:
+        messages.error(request, 'Failed to fetch playlists.')
+        return redirect('wraps_list')
     playlists = playlists_response.json()
 
-    # Save data with timestamp
+    # Process data to include image URLs
+    processed_top_artists = []
+    for artist in top_artists.get('items', []):
+        image_url = artist['images'][0]['url'] if artist.get('images') else None
+        processed_top_artists.append({
+            'name': artist['name'],
+            'image_url': image_url,
+        })
+
+    processed_top_tracks = []
+    for track in top_tracks.get('items', []):
+        album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
+        artists = [artist['name'] for artist in track['artists']]
+        processed_top_tracks.append({
+            'name': track['name'],
+            'artists': artists,
+            'album_image_url': album_image_url,
+        })
+
+    processed_playlists = []
+    for playlist in playlists.get('items', []):
+        image_url = playlist['images'][0]['url'] if playlist.get('images') else None
+        processed_playlists.append({
+            'name': playlist['name'],
+            'image_url': image_url,
+        })
+
+    # Generate insights using Gemini
+    try:
+        prompt = (
+            "Based on the following Spotify data:\n"
+            f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+            f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
+            f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
+            "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
+        )
+        response = model.generate_content(prompt)
+        insights = response.text.strip()
+    except Exception as e:
+        insights = "Insights could not be generated at this time."
+        # Optionally, log the error for debugging
+        print(f"Error generating insights: {e}")
+
+    insights_html = markdown.markdown(insights)
+
+    # Save data with timestamp and insights
     SpotifyData.objects.create(
         user=request.user,
         top_artists=top_artists,
         top_tracks=top_tracks,
         playlists=playlists,
+        insights=insights,  # Store the raw insights
         timestamp=timezone.now()
     )
 
     context = {
-        'top_artists': top_artists['items'],
-        'top_tracks': top_tracks['items'],
-        'playlists': playlists['items'],
+        'insights_html': insights_html,  # Pass the converted HTML
+        'top_artists': processed_top_artists,
+        'top_tracks': processed_top_tracks,
+        'playlists': processed_playlists,
     }
     return render(request, 'users/generate.html', context)
 

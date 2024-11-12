@@ -1,0 +1,37 @@
+<!-- templates/users/wrapped_detail.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Wrapped Summary Detail</title>
+</head>
+<body>
+    <h1>Wrapped Summary for {{ wrapped_summary.created_at }}</h1>
+
+    <div>
+        <h2>Top Tracks</h2>
+        <ul>
+            {% for track in wrapped_summary.top_tracks %}
+                <li>{{ track }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div>
+        <h2>Top Artists</h2>
+        <ul>
+            {% for artist in wrapped_summary.top_artists %}
+                <li>{{ artist }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div>
+        <h2>Your Playlists</h2>
+        <ul>
+            {% for playlist in wrapped_summary.playlists %}
+                <li>{{ playlist }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

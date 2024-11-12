@@ -22,6 +22,15 @@ from django.http import JsonResponse
 
 from spotipy import Spotify
 
+from .models import WrappedSummary
+from django.utils import timezone
+
+from django.shortcuts import get_object_or_404
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 def spotify_auth(request):
     sp_oauth = SpotifyOAuth(
         client_id=settings.SPOTIFY_CLIENT_ID,
@@ -59,29 +68,60 @@ def wrapped_button(request):
     # Render the template with the button
     return render(request, 'wrapped_button.html')
 
-def generate_wrapped(request):
-    # Check if the token_info is in the session
-    token_info = request.session.get('token_info')
-    if token_info is None or 'access_token' not in token_info:
-        # Redirect to Spotify authentication if token is missing
-        return redirect('spotify_auth')
-    
-    # Initialize the Spotify client with the access token
-    sp = Spotify(auth=token_info['access_token'])
 
-    # Fetch top tracks and artists
-    top_tracks = sp.current_user_top_tracks(limit=10, time_range='long_term')
-    top_artists = sp.current_user_top_artists(limit=10, time_range='long_term')
-    playlists = sp.current_user_playlists(limit=5)  # Fetch user playlists for example
+@login_required
+def generate_wrapped(request):
+    try:
+        # Retrieve token info from session
+        token_info = request.session.get('token_info')
+        if token_info is None or 'access_token' not in token_info:
+            return JsonResponse({'error': 'Authentication required'}, status=403)
+
+        # Initialize the Spotify client
+        sp = Spotify(auth=token_info['access_token'])
+
+        # Fetch top tracks, artists, and playlists
+        top_tracks = sp.current_user_top_tracks(limit=10, time_range='long_term')
+        top_artists = sp.current_user_top_artists(limit=10, time_range='long_term')
+        playlists = sp.current_user_playlists(limit=5)
+
+        # Prepare data response
+        wrapped_data = {
+            "top_tracks": [track['name'] for track in top_tracks.get('items', [])],
+            "top_artists": [artist['name'] for artist in top_artists.get('items', [])],
+            "playlists": [playlist['name'] for playlist in playlists.get('items', [])]
+        }
+
+        # Save to database if data is present
+        if wrapped_data["top_tracks"] or wrapped_data["top_artists"] or wrapped_data["playlists"]:
+            WrappedSummary.objects.create(
+                user=request.user,
+                top_tracks=wrapped_data["top_tracks"],
+                top_artists=wrapped_data["top_artists"],
+                playlists=wrapped_data["playlists"]
+            )
+
+        return JsonResponse(wrapped_data)
+
+    except Exception as e:
+        logger.error("Error in generate_wrapped view: %s", e)
+        return JsonResponse({'error': str(e)}, status=500)
     
-    # Example data response (customize as needed)
-    wrapped_data = {
-        "top_tracks": [track['name'] for track in top_tracks['items']],
-        "top_artists": [artist['name'] for artist in top_artists['items']],
-        "playlists": [playlist['name'] for playlist in playlists['items']]
-    }
-    
-    return JsonResponse(wrapped_data)
+@login_required
+def wrapped_list(request):
+    wrapped_summaries = WrappedSummary.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'users/wrapped_list.html', {'wrapped_summaries': wrapped_summaries})
+
+@login_required
+def wrapped_detail(request, pk):
+    wrapped_summary = get_object_or_404(WrappedSummary, pk=pk, user=request.user)
+    return render(request, 'users/wrapped_detail.html', {'wrapped_summary': wrapped_summary})
+
+@login_required
+def wrapped_history(request):
+    # Fetch all wrapped summaries for the logged-in user, ordered by the most recent
+    wrapped_summaries = WrappedSummary.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'users/wrapped_history.html', {'wrapped_summaries': wrapped_summaries})
 
 def home(request):
     return render(request, 'users/home.html')

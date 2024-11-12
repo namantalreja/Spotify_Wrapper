@@ -1,0 +1,68 @@
+<!-- templates/wrap_detail.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spotify Wrap - {{ wrap.timestamp|date:"F j, Y, g:i a" }}</title>
+    <style>
+        /* Basic styling for better presentation */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        .back-link {
+            margin-top: 20px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Spotify Wrap - {{ wrap.timestamp|date:"F j, Y, g:i a" }}</h1>
+
+    <h2>Top Artists</h2>
+    {% if top_artists %}
+        <ul>
+            {% for artist in top_artists %}
+                <li>{{ artist.name }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No top artists data available.</p>
+    {% endif %}
+
+    <h2>Top Tracks</h2>
+    {% if top_tracks %}
+        <ul>
+            {% for track in top_tracks %}
+                <li>
+                    {{ track.name }} by 
+                    {% for artist in track.artists %}
+                        {{ artist.name }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No top tracks data available.</p>
+    {% endif %}
+
+    <h2>Playlists</h2>
+    {% if playlists %}
+        <ul>
+            {% for playlist in playlists %}
+                <li>{{ playlist.name }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No playlists data available.</p>
+    {% endif %}
+
+    <a href="{% url 'wraps_list' %}" class="back-link">← Back to Wraps List</a>
+</body>
+</html>

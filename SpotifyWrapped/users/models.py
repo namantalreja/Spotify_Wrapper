@@ -22,4 +22,16 @@ class Profile(models.Model):
             img.thumbnail(new_img)
             img.save(self.avatar.path)
 
+            
+class SpotifyData(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    top_artists = models.JSONField()
+    top_tracks = models.JSONField()
+    playlists = models.JSONField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.timestamp}"
+
+
 

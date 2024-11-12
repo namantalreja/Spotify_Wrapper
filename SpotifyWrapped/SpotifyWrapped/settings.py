@@ -31,6 +31,10 @@ ALLOWED_HOSTS = []
 LOGIN_REDIRECT_URL = '/'
 LOGIN_URL = 'login'
 
+SPOTIFY_CLIENT_ID = '2c003b26f57848eeaaca58d40cda0a98'
+SPOTIFY_CLIENT_SECRET = 'b210d250c6f6472db7eb163e3ef24a2e'
+SPOTIFY_REDIRECT_URI = 'http://localhost:8000/spotify/callback/'
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True

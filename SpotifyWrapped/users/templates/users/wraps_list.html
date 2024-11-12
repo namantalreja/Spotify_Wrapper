@@ -1,0 +1,46 @@
+<!-- templates/wraps_list.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Your Spotify Wraps</title>
+    <style>
+        /* Basic styling for better presentation */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .wrap-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .wrap-item {
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        .wrap-item a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        .wrap-item a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Spotify Wraps</h1>
+    {% if wraps %}
+        <ul class="wrap-list">
+            {% for wrap in wraps %}
+                <li class="wrap-item">
+                    <a href="{% url 'wrap_detail' wrap.id %}">
+                        Wrapped on {{ wrap.timestamp|date:"F j, Y, g:i a" }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have not generated any Spotify Wraps yet.</p>
+    {% endif %}
+    <a href="{% url 'generate_data' %}">Generate New Wrap</a>
+</body>
+</html>

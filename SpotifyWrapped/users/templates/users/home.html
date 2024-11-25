@@ -1,20 +1,26 @@
 {% extends "users/base.html" %}
 {% block title %} Home Page {% endblock title%}
+
 {% block content %}
-    <div class="jumbotron">
-        <h1 class="display-4">Welcome</h1>
-        <p class="lead">
-            This is <b>user registration and login system</b> build with django which is
-            a Python-based free and open-source web framework that follows the model–template–views architectural pattern.
-        </p>
-        <hr class="my-4">
-        <p class="lead">
-            <a href="{% url 'spotify_login' %}">Generate Spotify Data</a>
-            <a href="{% url 'wraps_list' %}">Your Wraps</a>
-            <a class="btn btn-primary btn-lg" href="{% url 'logout' %}" role="button">Logout</a>
-            <a class="btn btn-primary btn-lg" href="{% url 'login' %}" role="button">Sign in</a>
-        </p>
+    <div class="jumbotron text-center">
+        {% if user.is_authenticated %}
+            <h1 class="display-4">Welcome Back, {{ user.username }}!</h1>
+            <p class="lead">
+                Dive into your personalized Spotify Wrapped or create a Duo Wrapped with a friend.
+            </p>
+            <hr class="my-4">
+            <div class="d-flex justify-content-center">
+                <a href="{% url 'wraps_list' %}" class="btn btn-success btn-lg mr-3">Your Wraps</a>
+                <a href="{% url 'generate_data' %}" class="btn btn-primary btn-lg mr-3">Generate New Wrap</a>
+                <a href="{% url 'send_duo_invitation' %}" class="btn btn-warning btn-lg">Create Duo Wrapped</a>
+            </div>
+        {% else %}
+            <h1 class="display-4">Welcome to Spotify Wrapped Generator!</h1>
+            <p class="lead">
+                Unlock insights into your music preferences with personalized Spotify Wrapped. Join us to explore your top artists, tracks, and playlists.
+            </p>
+            <hr class="my-4">
+            <a href="{% url 'login' %}" class="btn btn-primary btn-lg">Sign In to Get Started</a>
+        {% endif %}
     </div>
-
 {% endblock content %}
-

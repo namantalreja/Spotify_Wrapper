@@ -6,6 +6,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth.views import PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from .forms import RegisterForm
+from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -23,12 +24,13 @@ from .models import SpotifyData
 import base64
 import urllib.parse
 from .forms import UpdateUserForm, UpdateProfileForm
+from .models import SpotifyData, DuoWrapInvitation, DuoSpotifyData
 import markdown  # Import the markdown library
 genai.configure(api_key=settings.GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
 def home(request):
     return render(request, 'users/home.html')
-
+@login_required
 def spotify_login(request):
     scopes = 'user-top-read playlist-read-private'
     auth_url = 'https://accounts.spotify.com/authorize'
@@ -64,32 +66,29 @@ def spotify_callback(request):
     tokens = response.json()
     access_token = tokens['access_token']
     refresh_token = tokens['refresh_token']
+    expires_in = tokens.get('expires_in')  # in seconds
 
-    # Save tokens in the session or database
-    request.session['access_token'] = access_token
-    request.session['refresh_token'] = refresh_token
+    # Save tokens in the user's profile
+    profile = request.user.profile
+    profile.spotify_access_token = access_token
+    profile.spotify_refresh_token = refresh_token
+    profile.spotify_token_expires = timezone.now() + timezone.timedelta(seconds=expires_in)
+    profile.save()
 
     return redirect('generate_data')
 
 @login_required
 def wraps_list(request):
-    """
-    Display a list of all wrapped entries for the logged-in user.
-    """
-    wraps = SpotifyData.objects.filter(user=request.user).order_by('-timestamp')  # Most recent first
-    context = {
-        'wraps': wraps,
-    }
+    wraps = SpotifyData.objects.filter(user=request.user).order_by('-timestamp')
+    duo_wraps = DuoSpotifyData.objects.filter(users=request.user).order_by('-timestamp')
+    context = {'wraps': wraps, 'duo_wraps': duo_wraps}
     return render(request, 'users/wraps_list.html', context)
 
 
 
 @login_required
 def wrap_detail(request, wrap_id):
-    """
-    Display the details of a specific wrapped entry.
-    """
-    wrap = get_object_or_404(SpotifyData, id=wrap_id, user=request.user)  # Ensure wrap belongs to the user
+    wrap = get_object_or_404(SpotifyData, id=wrap_id, user=request.user)
 
     # Extract data from the wrap
     top_artists = wrap.top_artists.get('items', [])
@@ -142,7 +141,37 @@ def wrap_detail(request, wrap_id):
 
 @login_required
 def generate_data(request):
-    access_token = request.session.get('access_token')
+    profile = request.user.profile
+    access_token = profile.spotify_access_token
+    refresh_token = profile.spotify_refresh_token
+    token_expires = profile.spotify_token_expires
+
+    # If access token is expired, refresh it
+    if not access_token or not token_expires or token_expires <= timezone.now():
+        # Refresh the token
+        token_url = 'https://accounts.spotify.com/api/token'
+        headers = {
+            'Authorization': 'Basic ' + base64.b64encode(f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}".encode()).decode()
+        }
+        data = {
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token,
+        }
+
+        response = requests.post(token_url, data=data, headers=headers)
+        if response.status_code != 200:
+            messages.error(request, 'Failed to refresh access token.')
+            return redirect('spotify_login')  # Or handle as needed
+
+        tokens = response.json()
+        access_token = tokens['access_token']
+        expires_in = tokens.get('expires_in')  # in seconds
+
+        # Update the profile with the new token and expiry
+        profile.spotify_access_token = access_token
+        profile.spotify_token_expires = timezone.now() + timezone.timedelta(seconds=expires_in)
+        profile.save()
+
     if not access_token:
         return redirect('spotify_login')
 
@@ -320,3 +349,155 @@ class ChangePasswordView(SuccessMessageMixin, PasswordChangeView):
     success_message = "Successfully Changed Your Password"
     success_url = reverse_lazy('users-home')
 
+
+
+def process_artists(artists_data):
+    processed_artists = []
+    for artist in artists_data.get('items', []):
+        image_url = artist['images'][0]['url'] if artist.get('images') else None
+        processed_artists.append({'name': artist['name'], 'image_url': image_url})
+    return processed_artists
+
+def process_tracks(tracks_data):
+    processed_tracks = []
+    for track in tracks_data.get('items', []):
+        album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
+        artists = [artist['name'] for artist in track['artists']]
+        processed_tracks.append({
+            'name': track['name'],
+            'artists': artists,
+            'album_image_url': album_image_url,
+        })
+    return processed_tracks
+
+def process_playlists(playlists_data):
+    processed_playlists = []
+    for playlist in playlists_data.get('items', []):
+        image_url = playlist['images'][0]['url'] if playlist.get('images') else None
+        processed_playlists.append({'name': playlist['name'], 'image_url': image_url})
+    return processed_playlists
+
+@login_required
+def send_duo_invitation(request):
+    if request.method == 'POST':
+        receiver_username = request.POST.get('receiver_username')
+        try:
+            receiver = User.objects.get(username=receiver_username)
+            if receiver == request.user:
+                messages.error(request, 'You cannot invite yourself.')
+                return redirect('send_duo_invitation')
+            existing_invitation = DuoWrapInvitation.objects.filter(
+                sender=request.user, receiver=receiver, status='pending').first()
+            if existing_invitation:
+                messages.info(request, 'An invitation has already been sent to this user.')
+                return redirect('send_duo_invitation')
+            DuoWrapInvitation.objects.create(sender=request.user, receiver=receiver)
+            messages.success(request, f'Invitation sent to {receiver.username}.')
+            return redirect('wraps_list')
+        except User.DoesNotExist:
+            messages.error(request, 'User not found.')
+            return redirect('send_duo_invitation')
+    else:
+        users = User.objects.exclude(username=request.user.username)
+        context = {'users': users}
+        return render(request, 'users/send_duo_invitation.html', context)
+
+@login_required
+def invitations_received(request):
+    invitations = DuoWrapInvitation.objects.filter(receiver=request.user, status='pending')
+    context = {'invitations': invitations}
+    return render(request, 'users/invitations_received.html', context)
+
+@login_required
+@login_required
+def accept_duo_invitation(request, invitation_id):
+    invitation = get_object_or_404(DuoWrapInvitation, id=invitation_id, receiver=request.user, status='pending')
+    invitation.status = 'accepted'
+    invitation.save()
+    messages.success(request, f'You have accepted the duo wrap invitation from {invitation.sender.username}.')
+    return redirect('generate_duo_wrap', invitation.id)
+
+@login_required
+def decline_duo_invitation(request, invitation_id):
+    invitation = get_object_or_404(DuoWrapInvitation, id=invitation_id, receiver=request.user, status='pending')
+    invitation.status = 'declined'
+    invitation.save()
+    messages.success(request, f'You have declined the duo wrap invitation from {invitation.sender.username}.')
+    return redirect('invitations_received')
+
+def merge_spotify_data(data1, data2):
+    items1 = data1.get('items', [])
+    items2 = data2.get('items', [])
+    combined_items = items1 + items2
+    unique_items = {item['id']: item for item in combined_items}.values()
+    return {'items': list(unique_items)}
+
+def extract_names_from_items(items):
+    return [item['name'] for item in items]
+
+@login_required
+def generate_duo_wrap(request, invitation_id):
+    invitation = get_object_or_404(DuoWrapInvitation, id=invitation_id, status='accepted')
+    users = [invitation.sender, invitation.receiver]
+
+    # Fetch the latest wraps
+    sender_wrap = SpotifyData.objects.filter(user=invitation.sender).order_by('-timestamp').first()
+    receiver_wrap = SpotifyData.objects.filter(user=invitation.receiver).order_by('-timestamp').first()
+
+    if not sender_wrap or not receiver_wrap:
+        messages.error(request, 'Both users must have at least one wrap to generate a duo wrap.')
+        return redirect('wraps_list')
+
+    # Combine data
+    combined_top_artists = merge_spotify_data(sender_wrap.top_artists, receiver_wrap.top_artists)
+    combined_top_tracks = merge_spotify_data(sender_wrap.top_tracks, receiver_wrap.top_tracks)
+    combined_playlists = merge_spotify_data(sender_wrap.playlists, receiver_wrap.playlists)
+
+    # Generate insights using Gemini
+    try:
+        prompt = (
+            "Based on the combined Spotify data of two users:\n"
+            f"Top Artists: {extract_names_from_items(combined_top_artists.get('items', []))}\n"
+            f"Top Tracks: {extract_names_from_items(combined_top_tracks.get('items', []))}\n"
+            f"Playlists: {extract_names_from_items(combined_playlists.get('items', []))}\n\n"
+            "Provide insights on how these two users' music tastes overlap and complement each other."
+        )
+        response = model.generate_content(prompt)
+        insights = response.text.strip()
+    except Exception as e:
+        insights = "Insights could not be generated at this time."
+        print(f"Error generating insights: {e}")
+
+    # Save duo wrap
+    duo_wrap = DuoSpotifyData.objects.create(
+        combined_top_artists=combined_top_artists,
+        combined_top_tracks=combined_top_tracks,
+        combined_playlists=combined_playlists,
+        insights=insights,
+        timestamp=timezone.now()
+    )
+    duo_wrap.users.set(users)
+    duo_wrap.save()
+
+    # Process data
+    context = {
+        'duo_wrap': duo_wrap,
+        'top_artists': process_artists(duo_wrap.combined_top_artists),
+        'top_tracks': process_tracks(duo_wrap.combined_top_tracks),
+        'playlists': process_playlists(duo_wrap.combined_playlists),
+        'insights_html': markdown.markdown(insights) if insights else None,
+    }
+
+    return render(request, 'users/duo_wrap_detail.html', context)
+
+@login_required
+def duo_wrap_detail(request, duo_wrap_id):
+    duo_wrap = get_object_or_404(DuoSpotifyData, id=duo_wrap_id, users=request.user)
+    context = {
+        'duo_wrap': duo_wrap,
+        'top_artists': process_artists(duo_wrap.combined_top_artists),
+        'top_tracks': process_tracks(duo_wrap.combined_top_tracks),
+        'playlists': process_playlists(duo_wrap.combined_playlists),
+        'insights_html': markdown.markdown(duo_wrap.insights) if duo_wrap.insights else None,
+    }
+    return render(request, 'users/duo_wrap_detail.html', context)

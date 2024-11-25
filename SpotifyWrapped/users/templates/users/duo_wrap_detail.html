@@ -67,9 +67,18 @@
                             {% else %}
                                 <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
                             {% endif %}
-                            <div class="card-body">
+                            <div class="card-body d-flex flex-column">
                                 <h5 class="card-title text-center">{{ track.name }}</h5>
                                 <p class="card-text text-center">by {{ track.artists|join:", " }}</p>
+                                {% if track.preview_url %}
+                                    <!-- Audio Player -->
+                                    <audio controls style="width: 100%; margin-top: auto;">
+                                        <source src="{{ track.preview_url }}" type="audio/mpeg">
+                                        Your browser does not support the audio element.
+                                    </audio>
+                                {% else %}
+                                    <p class="text-muted text-center">Preview not available.</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

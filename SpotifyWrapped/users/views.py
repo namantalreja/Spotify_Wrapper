@@ -25,11 +25,16 @@ import base64
 import urllib.parse
 from .forms import UpdateUserForm, UpdateProfileForm
 from .models import SpotifyData, DuoWrapInvitation, DuoSpotifyData
+from datetime import datetime
 import markdown  # Import the markdown library
+
+
 genai.configure(api_key=settings.GEMINI_API_KEY)
+
 model = genai.GenerativeModel("gemini-1.5-flash")
 def home(request):
     return render(request, 'users/home.html')
+
 @login_required
 def spotify_login(request):
     scopes = 'user-top-read playlist-read-private'
@@ -43,6 +48,7 @@ def spotify_login(request):
     url = f"{auth_url}?{urllib.parse.urlencode(params)}"
     return redirect(url)
 
+@login_required
 def spotify_callback(request):
     code = request.GET.get('code')
     error = request.GET.get('error')
@@ -104,15 +110,17 @@ def wrap_detail(request, wrap_id):
             'image_url': image_url,
         })
 
-    # Process tracks to include album image URLs
+    # Process tracks to include album image URLs and preview URLs
     processed_top_tracks = []
     for track in top_tracks:
         album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
         artists = [artist['name'] for artist in track['artists']]
+        preview_url = track.get('preview_url', None)  # Safely get the preview_url
         processed_top_tracks.append({
             'name': track['name'],
             'artists': artists,
             'album_image_url': album_image_url,
+            'preview_url': preview_url,  # Include preview_url in processed tracks
         })
 
     # Process playlists to include image URLs
@@ -125,10 +133,7 @@ def wrap_detail(request, wrap_id):
         })
 
     # Convert Markdown insights to HTML
-    if wrap.insights:
-        insights_html = markdown.markdown(wrap.insights)
-    else:
-        insights_html = None
+    insights_html = markdown.markdown(wrap.insights) if wrap.insights else None
 
     context = {
         'wrap': wrap,
@@ -137,7 +142,18 @@ def wrap_detail(request, wrap_id):
         'top_tracks': processed_top_tracks,
         'playlists': processed_playlists,
     }
+
     return render(request, 'users/wrap_detail.html', context)
+
+
+def get_current_holiday():
+    today = timezone.now().date()
+    if today.month == 10 and today.day == 31:
+        return 'Halloween'
+    elif today.month == 12 and today.day == 25:
+        return 'Christmas'
+    else:
+        return None
 
 @login_required
 def generate_data(request):
@@ -151,7 +167,9 @@ def generate_data(request):
         # Refresh the token
         token_url = 'https://accounts.spotify.com/api/token'
         headers = {
-            'Authorization': 'Basic ' + base64.b64encode(f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}".encode()).decode()
+            'Authorization': 'Basic ' + base64.b64encode(
+                f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}".encode()
+            ).decode()
         }
         data = {
             'grant_type': 'refresh_token',
@@ -203,68 +221,69 @@ def generate_data(request):
         return redirect('wraps_list')
     playlists = playlists_response.json()
 
-    # Process data to include image URLs
-    processed_top_artists = []
-    for artist in top_artists.get('items', []):
-        image_url = artist['images'][0]['url'] if artist.get('images') else None
-        processed_top_artists.append({
-            'name': artist['name'],
-            'image_url': image_url,
-        })
+    # Process data
+    processed_top_artists = process_artists(top_artists)  # Reuse existing logic for artists
+    processed_top_tracks = process_tracks(top_tracks)      # Ensure this function includes 'preview_url'
+    processed_playlists = process_playlists(playlists)     # Reuse existing logic for playlists
 
-    processed_top_tracks = []
-    for track in top_tracks.get('items', []):
-        album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
-        artists = [artist['name'] for artist in track['artists']]
-        processed_top_tracks.append({
-            'name': track['name'],
-            'artists': artists,
-            'album_image_url': album_image_url,
-        })
+    # Limit to Top 5 Tracks for playback
+    processed_top_tracks = processed_top_tracks[:5]
 
-    processed_playlists = []
-    for playlist in playlists.get('items', []):
-        image_url = playlist['images'][0]['url'] if playlist.get('images') else None
-        processed_playlists.append({
-            'name': playlist['name'],
-            'image_url': image_url,
-        })
+    # Determine if today is a holiday
+    holiday = get_current_holiday()
 
-    # Generate insights using Gemini
+    # Generate insights using your model (e.g., OpenAI)
     try:
-        prompt = (
-            "Based on the following Spotify data:\n"
-            f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
-            f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
-            f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
-            "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
-        )
+        if holiday:
+            prompt = (
+                f"Today is {holiday}! Based on the following Spotify data:\n"
+                f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+                f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
+                f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
+                f"Provide {holiday}-themed insights on how someone who listens to this kind of music might celebrate {holiday}."
+            )
+        else:
+            prompt = (
+                "Based on the following Spotify data:\n"
+                f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+                f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
+                f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
+                "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
+            )
+        # Replace 'model.generate_content' with your actual method to generate insights
         response = model.generate_content(prompt)
         insights = response.text.strip()
     except Exception as e:
         insights = "Insights could not be generated at this time."
-        # Optionally, log the error for debugging
-        print(f"Error generating insights: {e}")
+        print(f"Error generating insights: {e}")  # Log the error for debugging
 
     insights_html = markdown.markdown(insights)
 
-    # Save data with timestamp and insights
-    SpotifyData.objects.create(
+    # Save data with timestamp, insights, and holiday
+    wrap = SpotifyData.objects.create(  # Assign to 'wrap'
         user=request.user,
         top_artists=top_artists,
         top_tracks=top_tracks,
         playlists=playlists,
-        insights=insights,  # Store the raw insights
-        timestamp=timezone.now()
+        insights=insights,
+        timestamp=timezone.now(),
+        holiday=holiday  # Save the holiday
     )
 
+    # Prepare context for the template
     context = {
-        'insights_html': insights_html,  # Pass the converted HTML
-        'top_artists': processed_top_artists,
-        'top_tracks': processed_top_tracks,
-        'playlists': processed_playlists,
+        'wrap': wrap,                          # Pass the 'wrap' object to the template
+        'insights_html': insights_html,        # Pass the converted HTML
+        'top_artists': processed_top_artists,  # Processed data for display
+        'top_tracks': processed_top_tracks,    # Processed data with 'preview_url's
+        'playlists': processed_playlists,      # Processed data for display
+        'holiday': holiday,                    # Pass the holiday to the template
     }
-    return render(request, 'users/generate.html', context)
+
+    # Render the 'wrap_detail.html' template
+    return render(request, 'users/wrap_detail.html', context)
+
+
 
 
 class ResetPasswordView(SuccessMessageMixin, PasswordResetView):
@@ -363,10 +382,12 @@ def process_tracks(tracks_data):
     for track in tracks_data.get('items', []):
         album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
         artists = [artist['name'] for artist in track['artists']]
+        preview_url = track.get('preview_url', '').strip() # Fetch the preview URL
         processed_tracks.append({
             'name': track['name'],
             'artists': artists,
             'album_image_url': album_image_url,
+            'preview_url': preview_url,  # Include the preview URL
         })
     return processed_tracks
 
@@ -453,6 +474,15 @@ def generate_duo_wrap(request, invitation_id):
     combined_top_tracks = merge_spotify_data(sender_wrap.top_tracks, receiver_wrap.top_tracks)
     combined_playlists = merge_spotify_data(sender_wrap.playlists, receiver_wrap.playlists)
 
+    # Process combined top tracks and limit to top 5
+    processed_top_tracks = process_tracks(combined_top_tracks)
+    processed_top_tracks = processed_top_tracks[:5]  # Get top 5 tracks
+
+    # Process other combined data
+    processed_top_artists = process_artists(combined_top_artists)
+    processed_playlists = process_playlists(combined_playlists)
+
+    # Generate insights using Gemini
     # Generate insights using Gemini
     try:
         prompt = (
@@ -479,12 +509,12 @@ def generate_duo_wrap(request, invitation_id):
     duo_wrap.users.set(users)
     duo_wrap.save()
 
-    # Process data
+    # Process data for rendering
     context = {
         'duo_wrap': duo_wrap,
-        'top_artists': process_artists(duo_wrap.combined_top_artists),
-        'top_tracks': process_tracks(duo_wrap.combined_top_tracks),
-        'playlists': process_playlists(duo_wrap.combined_playlists),
+        'top_artists': processed_top_artists,
+        'top_tracks': processed_top_tracks,  # Top 5 tracks for playback
+        'playlists': processed_playlists,
         'insights_html': markdown.markdown(insights) if insights else None,
     }
 
@@ -501,3 +531,5 @@ def duo_wrap_detail(request, duo_wrap_id):
         'insights_html': markdown.markdown(duo_wrap.insights) if duo_wrap.insights else None,
     }
     return render(request, 'users/duo_wrap_detail.html', context)
+
+

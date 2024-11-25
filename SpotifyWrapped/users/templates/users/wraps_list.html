@@ -20,9 +20,13 @@
             <div class="row">
                 {% for wrap in wraps %}
                     <div class="col-md-4 mb-4">
-                        <div class="card h-100">
+                        <div class="card h-100 {% if wrap.holiday %}border-holiday {{ wrap.holiday|lower }}{% endif %}">
                             <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">Wrapped on {{ wrap.timestamp|date:"F j, Y" }}</h5>
+                                {% if wrap.holiday %}
+                                    <h5 class="card-title">{{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h5>
+                                {% else %}
+                                    <h5 class="card-title">Wrapped on {{ wrap.timestamp|date:"F j, Y" }}</h5>
+                                {% endif %}
                                 <p class="card-text">
                                     <!-- Optional: Include summary stats or highlights -->
                                     Top Artists: {{ wrap.top_artists.items|length }}<br>

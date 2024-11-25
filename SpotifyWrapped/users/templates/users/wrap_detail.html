@@ -37,6 +37,27 @@
         {% endif %}
     </section>
 
+    <!-- Social Media Share Buttons Section -->
+    <section class="mb-5">
+        <h2>Share Your Wrap</h2>
+        <div class="button-group">
+            <!-- Instagram Share Button (encourages sharing with a pre-generated image) -->
+            <a href="https://www.instagram.com" target="_blank" class="btn btn-danger mb-2" role="button">
+                <i class="fab fa-instagram"></i> Share on Instagram
+            </a>
+            
+            <!-- LinkedIn Share Button -->
+            <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}" target="_blank" class="btn btn-primary mb-2" role="button">
+                <i class="fab fa-linkedin"></i> Share on LinkedIn
+            </a>
+
+            <!-- X (Twitter) Share Button -->
+            <a href="https://twitter.com/intent/tweet?text=Check%20out%20my%20Spotify%20Wrap!%20{{ request.build_absolute_uri }}" target="_blank" class="btn btn-info mb-2" role="button">
+                <i class="fab fa-twitter"></i> Share on X (Twitter)
+            </a>
+        </div>
+    </section>
+
     <!-- Top Artists Section -->
     <section class="mb-5">
         <h2>Top Artists</h2>

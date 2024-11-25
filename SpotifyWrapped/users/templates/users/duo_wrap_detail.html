@@ -1,0 +1,113 @@
+<!-- templates/users/duo_wrap_detail.html -->
+{% extends "users/base.html" %}
+
+{% block title %}Duo Spotify Wrap - {{ duo_wrap.timestamp|date:"F j, Y" }}{% endblock title %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Duo Spotify Wrap - {{ duo_wrap.timestamp|date:"F j, Y" }}</h1>
+
+    <!-- Users Involved -->
+    <section class="mb-5">
+        <h2>Users</h2>
+        <ul class="list-group">
+            {% for user in duo_wrap.users.all %}
+                <li class="list-group-item">{{ user.username }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <!-- Insights Section -->
+    <section class="mb-5">
+        <h2>Insights</h2>
+        {% if insights_html %}
+            <div class="card p-4">
+                {{ insights_html|safe }}
+            </div>
+        {% else %}
+            <p class="text-muted">No insights available.</p>
+        {% endif %}
+    </section>
+
+    <!-- Combined Top Artists Section -->
+    <section class="mb-5">
+        <h2>Combined Top Artists</h2>
+        {% if top_artists %}
+            <div class="row">
+                {% for artist in top_artists %}
+                    <div class="col-md-3 col-sm-6 mb-4">
+                        <div class="card h-100">
+                            {% if artist.image_url %}
+                                <img src="{{ artist.image_url }}" class="card-img-top" alt="{{ artist.name }} Image">
+                            {% else %}
+                                <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title text-center">{{ artist.name }}</h5>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No combined top artists data available.</p>
+        {% endif %}
+    </section>
+
+    <!-- Combined Top Tracks Section -->
+    <section class="mb-5">
+        <h2>Combined Top Tracks</h2>
+        {% if top_tracks %}
+            <div class="row">
+                {% for track in top_tracks %}
+                    <div class="col-md-3 col-sm-6 mb-4">
+                        <div class="card h-100">
+                            {% if track.album_image_url %}
+                                <img src="{{ track.album_image_url }}" class="card-img-top" alt="{{ track.name }} Album Art">
+                            {% else %}
+                                <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title text-center">{{ track.name }}</h5>
+                                <p class="card-text text-center">by {{ track.artists|join:", " }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No combined top tracks data available.</p>
+        {% endif %}
+    </section>
+
+    <!-- Combined Playlists Section -->
+    <section class="mb-5">
+        <h2>Combined Playlists</h2>
+        {% if playlists %}
+            <div class="row">
+                {% for playlist in playlists %}
+                    <div class="col-md-3 col-sm-6 mb-4">
+                        <div class="card h-100">
+                            {% if playlist.image_url %}
+                                <img src="{{ playlist.image_url }}" class="card-img-top" alt="{{ playlist.name }} Cover">
+                            {% else %}
+                                <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title text-center">{{ playlist.name }}</h5>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No combined playlists data available.</p>
+        {% endif %}
+    </section>
+
+    <!-- Back to Wraps List Button -->
+    <div class="text-center">
+        <a href="{% url 'wraps_list' %}" class="btn btn-secondary">← Back to Wraps List</a>
+    </div>
+</div>
+{% endblock content %}

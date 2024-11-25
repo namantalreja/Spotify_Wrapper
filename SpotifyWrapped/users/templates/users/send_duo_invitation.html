@@ -1,0 +1,64 @@
+{% extends "users/base.html" %}
+
+{% block title %}Send Duo Wrap Invitation{% endblock title%}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Send Duo Wrap Invitation</h1>
+
+    <div class="card p-4">
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="receiver_username">Select a User to Invite</label>
+                <select name="receiver_username" id="receiver_username" class="form-control" required>
+                    <option value="" disabled selected>-- Choose a User --</option>
+                    {% for user in users %}
+                        <option value="{{ user.username }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+                <div class="invalid-feedback">
+                    Please select a user to invite.
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Send Invitation</button>
+        </form>
+    </div>
+
+    <!-- Optional: Display success or error messages -->
+    {% if messages %}
+        <div class="mt-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- Optional: Bootstrap form validation script -->
+<script>
+    // Example starter JavaScript for disabling form submissions if there are invalid fields
+    (function() {
+      'use strict';
+      window.addEventListener('load', function() {
+        // Fetch all the forms we want to apply custom Bootstrap validation styles to
+        var forms = document.getElementsByClassName('needs-validation');
+        // Loop over them and prevent submission
+        var validation = Array.prototype.filter.call(forms, function(form) {
+          form.addEventListener('submit', function(event) {
+            if (form.checkValidity() === false) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+          }, false);
+        });
+      }, false);
+    })();
+</script>
+{% endblock content %}

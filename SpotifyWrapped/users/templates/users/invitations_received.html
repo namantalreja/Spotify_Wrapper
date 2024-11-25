@@ -1,0 +1,40 @@
+{% extends "users/base.html" %}
+
+{% block title %}Pending Duo Wrap Invitations{% endblock title%}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">Pending Duo Wrap Invitations</h1>
+
+    {% if invitations %}
+        <div class="row">
+            {% for invitation in invitations %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Invitation from {{ invitation.sender.username }}</h5>
+                            <p class="card-text">Would you like to create a Duo Spotify Wrap with {{ invitation.sender.username }}?</p>
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'accept_duo_invitation' invitation.id %}" class="btn btn-success">Accept</a>
+                                <a href="{% url 'decline_duo_invitation' invitation.id %}" class="btn btn-danger">Decline</a>
+                            </div>
+                        </div>
+                        <div class="card-footer text-muted">
+                            Sent on {{ invitation.timestamp|date:"F j, Y, g:i a" }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center" role="alert">
+            You have no pending Duo Wrap invitations.
+        </div>
+    {% endif %}
+
+    <!-- Optional: Button to Send New Invitations -->
+    <div class="text-center mt-4">
+        <a href="{% url 'send_duo_invitation' %}" class="btn btn-primary">Send a New Invitation</a>
+    </div>
+</div>
+{% endblock content %}

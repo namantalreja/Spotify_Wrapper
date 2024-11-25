@@ -1,11 +1,12 @@
 # Byte-compiled / optimized / DLL files
-__pycache__/
+*/__pycache__
+__pycache__
 *.py[cod]
 *$py.class
-
+db.sqlite3
 # C extensions
 *.so
-
+*.pyc
 # Distribution / packaging
 .Python
 build/
@@ -154,6 +155,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+*.pyc
+*.sqlite3
+__pycache__
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

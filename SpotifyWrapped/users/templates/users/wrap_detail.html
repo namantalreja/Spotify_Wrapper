@@ -16,14 +16,13 @@
         <div class="holiday-banner {{ wrap.holiday|lower }}">
             <h1 class="mb-4">{{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h1>
             <!-- Optional: Include a holiday-themed banner image -->
-            <img src="{% static 'images/{{ wrap.holiday|lower }}_banner.jpg' %}" alt="{{ wrap.holiday }} Banner" class="img-fluid mb-4">
+            {% if wrap.holiday %}
+                <img src="{% static 'images/'|add:wrap.holiday|lower|add:'_banner.jpg' %}" alt="{{ wrap.holiday }} Banner" class="img-fluid mb-4">
+            {% endif %}
         </div>
     {% else %}
         <h1 class="mb-4">Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h1>
     {% endif %}
-
-    <!-- Display Time Range -->
-    <p><strong>Time Range:</strong> {{ wrap.get_time_range_display }}</p>
 
     <!-- Insights Section -->
     <section class="mb-5">

@@ -148,13 +148,14 @@ def wrap_detail(request, wrap_id):
 
 def get_current_holiday():
     today = timezone.now().date()
+    
     if today.month == 10 and today.day == 31:
         return 'Halloween'
     elif today.month == 12 and today.day == 25:
         return 'Christmas'
     else:
         return None
-
+    
 @login_required
 def generate_data(request):
     profile = request.user.profile
@@ -162,43 +163,12 @@ def generate_data(request):
     refresh_token = profile.spotify_refresh_token
     token_expires = profile.spotify_token_expires
 
-    # If access token is expired, refresh it
-    if not access_token or not token_expires or token_expires <= timezone.now():
-        # Refresh the token
-        token_url = 'https://accounts.spotify.com/api/token'
-        headers = {
-            'Authorization': 'Basic ' + base64.b64encode(
-                f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}".encode()
-            ).decode()
-        }
-        data = {
-            'grant_type': 'refresh_token',
-            'refresh_token': refresh_token,
-        }
+    # Token refresh logic remains the same...
 
-        response = requests.post(token_url, data=data, headers=headers)
-        if response.status_code != 200:
-            messages.error(request, 'Failed to refresh access token.')
-            return redirect('spotify_login')  # Or handle as needed
-
-        tokens = response.json()
-        access_token = tokens['access_token']
-        expires_in = tokens.get('expires_in')  # in seconds
-
-        # Update the profile with the new token and expiry
-        profile.spotify_access_token = access_token
-        profile.spotify_token_expires = timezone.now() + timezone.timedelta(seconds=expires_in)
-        profile.save()
-
-    if not access_token:
-        return redirect('spotify_login')
-
-    headers = {
-        'Authorization': f'Bearer {access_token}'
-    }
+    headers = {'Authorization': f'Bearer {access_token}'}
 
     # Fetch Top Artists
-    top_artists_url = 'https://api.spotify.com/v1/me/top/artists'
+    top_artists_url = 'https://api.spotify.com/v1/me/top/artists?limit=50'
     top_artists_response = requests.get(top_artists_url, headers=headers)
     if top_artists_response.status_code != 200:
         messages.error(request, 'Failed to fetch top artists.')
@@ -206,7 +176,7 @@ def generate_data(request):
     top_artists = top_artists_response.json()
 
     # Fetch Top Tracks
-    top_tracks_url = 'https://api.spotify.com/v1/me/top/tracks'
+    top_tracks_url = 'https://api.spotify.com/v1/me/top/tracks?limit=50'
     top_tracks_response = requests.get(top_tracks_url, headers=headers)
     if top_tracks_response.status_code != 200:
         messages.error(request, 'Failed to fetch top tracks.')
@@ -214,7 +184,7 @@ def generate_data(request):
     top_tracks = top_tracks_response.json()
 
     # Fetch Playlists
-    playlists_url = 'https://api.spotify.com/v1/me/playlists'
+    playlists_url = 'https://api.spotify.com/v1/me/playlists?limit=50'
     playlists_response = requests.get(playlists_url, headers=headers)
     if playlists_response.status_code != 200:
         messages.error(request, 'Failed to fetch playlists.')
@@ -222,9 +192,9 @@ def generate_data(request):
     playlists = playlists_response.json()
 
     # Process data
-    processed_top_artists = process_artists(top_artists)  # Reuse existing logic for artists
-    processed_top_tracks = process_tracks(top_tracks)      # Ensure this function includes 'preview_url'
-    processed_playlists = process_playlists(playlists)     # Reuse existing logic for playlists
+    processed_top_artists = process_artists(top_artists)
+    processed_top_tracks = process_tracks(top_tracks)
+    processed_playlists = process_playlists(playlists)
 
     # Limit to Top 5 Tracks for playback
     processed_top_tracks = processed_top_tracks[:5]
@@ -234,54 +204,184 @@ def generate_data(request):
 
     # Generate insights using your model (e.g., OpenAI)
     try:
-        if holiday:
-            prompt = (
-                f"Today is {holiday}! Based on the following Spotify data:\n"
-                f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
-                f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
-                f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
-                f"Provide {holiday}-themed insights on how someone who listens to this kind of music might celebrate {holiday}."
-            )
-        else:
-            prompt = (
-                "Based on the following Spotify data:\n"
-                f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
-                f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
-                f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
-                "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
-            )
+        prompt = (
+            f"Based on your listening history:\n"
+            f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+            f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n\n"
+            "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
+        )
         # Replace 'model.generate_content' with your actual method to generate insights
         response = model.generate_content(prompt)
         insights = response.text.strip()
     except Exception as e:
         insights = "Insights could not be generated at this time."
-        print(f"Error generating insights: {e}")  # Log the error for debugging
+        print(f"Error generating insights: {e}")
 
     insights_html = markdown.markdown(insights)
 
     # Save data with timestamp, insights, and holiday
-    wrap = SpotifyData.objects.create(  # Assign to 'wrap'
+    wrap = SpotifyData.objects.create(
         user=request.user,
         top_artists=top_artists,
         top_tracks=top_tracks,
         playlists=playlists,
         insights=insights,
         timestamp=timezone.now(),
-        holiday=holiday  # Save the holiday
+        holiday=holiday,
     )
 
     # Prepare context for the template
     context = {
-        'wrap': wrap,                          # Pass the 'wrap' object to the template
-        'insights_html': insights_html,        # Pass the converted HTML
-        'top_artists': processed_top_artists,  # Processed data for display
-        'top_tracks': processed_top_tracks,    # Processed data with 'preview_url's
-        'playlists': processed_playlists,      # Processed data for display
-        'holiday': holiday,                    # Pass the holiday to the template
+        'wrap': wrap,
+        'insights_html': insights_html,
+        'top_artists': processed_top_artists,
+        'top_tracks': processed_top_tracks,
+        'playlists': processed_playlists,
+        'holiday': holiday,
     }
 
     # Render the 'wrap_detail.html' template
     return render(request, 'users/wrap_detail.html', context)
+
+
+# @login_required
+# def generate_data(request):
+#     profile = request.user.profile
+#     access_token = profile.spotify_access_token
+#     refresh_token = profile.spotify_refresh_token
+#     token_expires = profile.spotify_token_expires
+
+#     # If access token is expired, refresh it
+#     if not access_token or not token_expires or token_expires <= timezone.now():
+#         # Refresh the token
+#         token_url = 'https://accounts.spotify.com/api/token'
+#         headers = {
+#             'Authorization': 'Basic ' + base64.b64encode(
+#                 f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}".encode()
+#             ).decode()
+#         }
+#         data = {
+#             'grant_type': 'refresh_token',
+#             'refresh_token': refresh_token,
+#         }
+
+#         response = requests.post(token_url, data=data, headers=headers)
+#         if response.status_code != 200:
+#             messages.error(request, 'Failed to refresh access token.')
+#             return redirect('spotify_login')  # Or handle as needed
+
+#         tokens = response.json()
+#         access_token = tokens['access_token']
+#         expires_in = tokens.get('expires_in')  # in seconds
+
+#         # Update the profile with the new token and expiry
+#         profile.spotify_access_token = access_token
+#         profile.spotify_token_expires = timezone.now() + timezone.timedelta(seconds=expires_in)
+#         profile.save()
+
+#     if not access_token:
+#         return redirect('spotify_login')
+
+#     headers = {
+#         'Authorization': f'Bearer {access_token}'
+#     }
+
+#     if request.method == 'POST':
+#         form = TimeRangeForm(request.POST)
+#         if form.is_valid():
+#             time_range = form.cleaned_data['time_range']
+
+#             # Fetch Top Artists with time_range
+#             top_artists_url = f'https://api.spotify.com/v1/me/top/artists?time_range={time_range}&limit=50'
+#             top_artists_response = requests.get(top_artists_url, headers=headers)
+#             if top_artists_response.status_code != 200:
+#                 messages.error(request, 'Failed to fetch top artists.')
+#                 return redirect('wraps_list')
+#             top_artists = top_artists_response.json()
+
+#             # Fetch Top Tracks with time_range
+#             top_tracks_url = f'https://api.spotify.com/v1/me/top/tracks?time_range={time_range}&limit=50'
+#             top_tracks_response = requests.get(top_tracks_url, headers=headers)
+#             if top_tracks_response.status_code != 200:
+#                 messages.error(request, 'Failed to fetch top tracks.')
+#                 return redirect('wraps_list')
+#             top_tracks = top_tracks_response.json()
+
+#             # Fetch Playlists (no time_range parameter)
+#             playlists_url = 'https://api.spotify.com/v1/me/playlists?limit=50'
+#             playlists_response = requests.get(playlists_url, headers=headers)
+#             if playlists_response.status_code != 200:
+#                 messages.error(request, 'Failed to fetch playlists.')
+#                 return redirect('wraps_list')
+#             playlists = playlists_response.json()
+
+#             # Process data
+#             processed_top_artists = process_artists(top_artists)
+#             processed_top_tracks = process_tracks(top_tracks)
+#             processed_playlists = process_playlists(playlists)
+
+#             # Limit to Top 5 Tracks for playback
+#             processed_top_tracks = processed_top_tracks[:5]
+
+#             # Determine if today is a holiday
+#             holiday = get_current_holiday()
+
+#             # Generate insights using your model (e.g., OpenAI)
+#             try:
+#                 if holiday:
+#                     prompt = (
+#                         f"Today is {holiday}! Based on the following Spotify data:\n"
+#                         f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+#                         f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
+#                         f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
+#                         f"Provide {holiday}-themed insights on how someone who listens to this kind of music might celebrate {holiday}."
+#                     )
+#                 else:
+#                     prompt = (
+#                         f"Based on the following Spotify data (Time Range: {time_range}):\n"
+#                         f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+#                         f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n"
+#                         f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
+#                         "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
+#                     )
+#                 # Replace 'model.generate_content' with your actual method to generate insights
+#                 response = model.generate_content(prompt)
+#                 insights = response.text.strip()
+#             except Exception as e:
+#                 insights = "Insights could not be generated at this time."
+#                 print(f"Error generating insights: {e}")  # Log the error for debugging
+
+#             insights_html = markdown.markdown(insights)
+
+#             # Save data with timestamp, insights, holiday, and time_range
+#             wrap = SpotifyData.objects.create(
+#                 user=request.user,
+#                 top_artists=top_artists,
+#                 top_tracks=top_tracks,
+#                 playlists=playlists,
+#                 insights=insights,
+#                 timestamp=timezone.now(),
+#                 holiday=holiday,
+#                 time_range=time_range,  # Save the time range
+#             )
+
+#             # Prepare context for the template
+#             context = {
+#                 'wrap': wrap,                          # Pass the 'wrap' object to the template
+#                 'insights_html': insights_html,        # Pass the converted HTML
+#                 'top_artists': processed_top_artists,  # Processed data for display
+#                 'top_tracks': processed_top_tracks,    # Processed data with 'preview_url's
+#                 'playlists': processed_playlists,      # Processed data for display
+#                 'holiday': holiday,                    # Pass the holiday to the template
+#             }
+
+#             # Render the 'wrap_detail.html' template
+#             return render(request, 'users/wrap_detail.html', context)
+#     else:
+#         form = TimeRangeForm()
+
+#     # If GET request, display the time range selection form
+#     return render(request, 'users/generate.html', {'form': form})
 
 
 

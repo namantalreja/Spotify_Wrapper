@@ -1,33 +1,35 @@
 {% extends "users/base.html" %}
+{% load static %}
 
-{% block title %}Your New Wrapped!{% endblock title %}
+{% block title %}Create a New Spotify Wrap{% endblock title %}
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="mb-4">Your New Wrapped!</h1>
+    <h1 class="mb-4">Create a New Spotify Wrap</h1>
 
-    <!-- Insights Section -->
-    <section class="mb-5">
-        <h2>Insights</h2>
-        {% if insights_html %}
-            <div class="card p-4">
-                {{ insights_html|safe }}
-            </div>
-        {% else %}
-            <p class="text-muted">No insights available.</p>
-        {% endif %}
-    </section>
+    <!-- Display Generated Data -->
+    {% if top_artists and top_tracks and playlists %}
+        <!-- Insights Section -->
+        <section class="mb-5">
+            <h2>Insights</h2>
+            {% if insights_html %}
+                <div class="card p-4">
+                    {{ insights_html|safe }}
+                </div>
+            {% else %}
+                <p class="text-muted">No insights available.</p>
+            {% endif %}
+        </section>
 
-    <!-- Top Artists Section -->
-    <section class="mb-5">
-        <h2>Top Artists</h2>
-        {% if top_artists %}
+        <!-- Top Artists Section -->
+        <section class="mb-5">
+            <h2>Top Artists</h2>
             <div class="row">
                 {% for artist in top_artists %}
                     <div class="col-md-3 col-sm-6 mb-4">
                         <div class="card h-100">
                             {% if artist.image_url %}
-                                <img src="{{ artist.image_url }}" class="card-img-top" alt="{{ artist.name }} Image">
+                                <img src="{{ artist.image_url }}" class="card-img-top" alt="{{ artist.name }}">
                             {% else %}
                                 <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
                             {% endif %}
@@ -38,21 +40,17 @@
                     </div>
                 {% endfor %}
             </div>
-        {% else %}
-            <p class="text-muted">No top artists data available.</p>
-        {% endif %}
-    </section>
+        </section>
 
-    <!-- Top Tracks Section -->
-    <section class="mb-5">
-        <h2>Top Tracks</h2>
-        {% if top_tracks %}
+        <!-- Top Tracks Section -->
+        <section class="mb-5">
+            <h2>Top Tracks</h2>
             <div class="row">
                 {% for track in top_tracks %}
-                    <div class="col-md-3 col-sm-6 mb-4">
+                    <div class="col-md-6 col-lg-4 mb-4">
                         <div class="card h-100">
                             {% if track.album_image_url %}
-                                <img src="{{ track.album_image_url }}" class="card-img-top" alt="{{ track.name }} Album Art">
+                                <img src="{{ track.album_image_url }}" class="card-img-top" alt="{{ track.name }}">
                             {% else %}
                                 <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
                             {% endif %}
@@ -64,21 +62,17 @@
                     </div>
                 {% endfor %}
             </div>
-        {% else %}
-            <p class="text-muted">No top tracks data available.</p>
-        {% endif %}
-    </section>
+        </section>
 
-    <!-- Playlists Section -->
-    <section class="mb-5">
-        <h2>Playlists</h2>
-        {% if playlists %}
+        <!-- Playlists Section -->
+        <section class="mb-5">
+            <h2>Playlists</h2>
             <div class="row">
                 {% for playlist in playlists %}
                     <div class="col-md-3 col-sm-6 mb-4">
                         <div class="card h-100">
                             {% if playlist.image_url %}
-                                <img src="{{ playlist.image_url }}" class="card-img-top" alt="{{ playlist.name }} Cover">
+                                <img src="{{ playlist.image_url }}" class="card-img-top" alt="{{ playlist.name }}">
                             {% else %}
                                 <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
                             {% endif %}
@@ -89,14 +83,7 @@
                     </div>
                 {% endfor %}
             </div>
-        {% else %}
-            <p class="text-muted">No playlists data available.</p>
-        {% endif %}
-    </section>
-
-    <!-- Back to Wraps List Button -->
-    <div class="text-center">
-        <a href="{% url 'wraps_list' %}" class="btn btn-secondary">← Back to Wraps List</a>
-    </div>
+        </section>
+    {% endif %}
 </div>
 {% endblock content %}

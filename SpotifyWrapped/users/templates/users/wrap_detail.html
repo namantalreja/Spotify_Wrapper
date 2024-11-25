@@ -4,9 +4,9 @@
 
 {% block title %}
     {% if wrap.holiday %}
-        {{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }}
+        {{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }} ({{ wrap.get_time_range_display }})
     {% else %}
-        Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}
+        Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }} ({{ wrap.get_time_range_display }})
     {% endif %}
 {% endblock title %}
 
@@ -21,6 +21,9 @@
     {% else %}
         <h1 class="mb-4">Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h1>
     {% endif %}
+
+    <!-- Display Time Range -->
+    <p><strong>Time Range:</strong> {{ wrap.get_time_range_display }}</p>
 
     <!-- Insights Section -->
     <section class="mb-5">

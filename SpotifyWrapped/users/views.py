@@ -135,6 +135,8 @@ def wrap_detail(request, wrap_id):
     # Convert Markdown insights to HTML
     insights_html = markdown.markdown(wrap.insights) if wrap.insights else None
 
+
+
     context = {
         'wrap': wrap,
         'insights_html': insights_html,  # Add insights_html to context
@@ -156,6 +158,15 @@ def get_current_holiday():
     else:
         return None
     
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.utils import timezone
+from django.conf import settings
+import requests
+import markdown
+import urllib.parse
+
 @login_required
 def generate_data(request):
     profile = request.user.profile
@@ -163,7 +174,31 @@ def generate_data(request):
     refresh_token = profile.spotify_refresh_token
     token_expires = profile.spotify_token_expires
 
-    # Token refresh logic remains the same...
+    # Refresh Spotify token if expired
+    if not access_token or not token_expires or token_expires <= timezone.now():
+        token_url = 'https://accounts.spotify.com/api/token'
+        headers = {
+            'Authorization': 'Basic ' + base64.b64encode(
+                f"{settings.SPOTIFY_CLIENT_ID}:{settings.SPOTIFY_CLIENT_SECRET}".encode()
+            ).decode()
+        }
+        data = {
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token,
+        }
+
+        response = requests.post(token_url, data=data, headers=headers)
+        if response.status_code != 200:
+            messages.error(request, 'Failed to refresh access token.')
+            return redirect('spotify_login')
+
+        tokens = response.json()
+        access_token = tokens['access_token']
+        expires_in = tokens.get('expires_in')
+
+        profile.spotify_access_token = access_token
+        profile.spotify_token_expires = timezone.now() + timezone.timedelta(seconds=expires_in)
+        profile.save()
 
     headers = {'Authorization': f'Bearer {access_token}'}
 
@@ -204,13 +239,20 @@ def generate_data(request):
 
     # Generate insights using your model (e.g., OpenAI)
     try:
-        prompt = (
-            f"Based on your listening history:\n"
-            f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
-            f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n\n"
-            "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
-        )
-        # Replace 'model.generate_content' with your actual method to generate insights
+        if holiday:
+            prompt = (
+                f"Today is {holiday}! Based on your listening history:\n"
+                f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+                f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n\n"
+                f"Provide {holiday}-themed insights on how someone who listens to this kind of music might celebrate {holiday}."
+            )
+        else:
+            prompt = (
+                f"Based on your listening history:\n"
+                f"Top Artists: {[artist['name'] for artist in processed_top_artists]}\n"
+                f"Top Tracks: {[track['name'] for track in processed_top_tracks]}\n\n"
+                "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
+            )
         response = model.generate_content(prompt)
         insights = response.text.strip()
     except Exception as e:
@@ -230,6 +272,43 @@ def generate_data(request):
         holiday=holiday,
     )
 
+    import urllib.parse
+
+    # Construct Twitter share link
+    tweet_message = (
+        f"I just created my Spotify Wrapped! 🎶\n"
+        f"Top Artists: {', '.join([artist['name'] for artist in processed_top_artists[:3]])}\n"
+        f"Top Tracks: {', '.join([track['name'] for track in processed_top_tracks[:3]])}\n"
+        "Check out your own at http://127.0.0.1:8000/generate/! #SpotifyWrapped"
+    )
+    twitter_url = f"https://twitter.com/intent/tweet?text={urllib.parse.quote(tweet_message)}"
+
+    # Construct LinkedIn share link
+    linkedin_message = (
+        f"I just explored my Spotify Wrapped! 🎶\n"
+        f"Top Artists: {', '.join([artist['name'] for artist in processed_top_artists[:3]])}\n"
+        f"Top Tracks: {', '.join([track['name'] for track in processed_top_tracks[:3]])}\n"
+        "Create your own and discover your music tastes at http://127.0.0.1:8000/generate/!"
+    )
+
+    linkedin_url = (
+        f"https://www.linkedin.com/sharing/share-offsite/?"
+        f"url={urllib.parse.quote('http://127.0.0.1:8000/generate/')}&"
+        f"summary={urllib.parse.quote(linkedin_message)}"
+    )
+
+    threads_message = (
+        f"I just created my Spotify Wrapped! 🎶\n"
+        f"Top Artists: {[artist['name'] for artist in processed_top_artists[:3]]}\n"
+        f"Top Tracks: {[track['name'] for track in processed_top_tracks[:3]]}\n"
+        "Explore your music tastes and create your own Wrapped at [your_site_url]! #SpotifyWrapped"
+    )
+
+    threads_message_encoded = urllib.parse.quote(threads_message)
+
+    # Update Threads URL
+    threads_url = f"https://www.threads.net/share?text={threads_message_encoded}"
+
     # Prepare context for the template
     context = {
         'wrap': wrap,
@@ -238,11 +317,13 @@ def generate_data(request):
         'top_tracks': processed_top_tracks,
         'playlists': processed_playlists,
         'holiday': holiday,
+        'twitter_url': twitter_url,
+        'linkedin_url': linkedin_url,
+        'threads_message': threads_url,
     }
 
     # Render the 'wrap_detail.html' template
     return render(request, 'users/wrap_detail.html', context)
-
 
 # @login_required
 # def generate_data(request):

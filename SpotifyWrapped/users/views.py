@@ -1,4 +1,3 @@
-
 from django.views import View
 from django.contrib.auth.views import LoginView
 from .forms import RegisterForm, LoginForm
@@ -7,31 +6,24 @@ from django.contrib.auth.views import PasswordResetView
 from django.contrib.messages.views import SuccessMessageMixin
 from .forms import RegisterForm
 from django.contrib.auth.models import User
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse_lazy
-from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth.views import PasswordChangeView
-from django.contrib.messages.views import SuccessMessageMixin
 import requests
 import google.generativeai as genai
-import os
-from django.shortcuts import redirect, render
 from django.conf import settings
 from django.utils import timezone
-from .models import SpotifyData
+from .models import SpotifyData, DuoWrapInvitation, DuoSpotifyData
 import base64
 import urllib.parse
 from .forms import UpdateUserForm, UpdateProfileForm
-from .models import SpotifyData, DuoWrapInvitation, DuoSpotifyData
-from datetime import datetime
 import markdown  # Import the markdown library
-
+from datetime import datetime
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
-
 model = genai.GenerativeModel("gemini-1.5-flash")
+
 def home(request):
     return render(request, 'users/home.html')
 
@@ -90,8 +82,6 @@ def wraps_list(request):
     context = {'wraps': wraps, 'duo_wraps': duo_wraps}
     return render(request, 'users/wraps_list.html', context)
 
-
-
 @login_required
 def wrap_detail(request, wrap_id):
     wrap = get_object_or_404(SpotifyData, id=wrap_id, user=request.user)
@@ -104,33 +94,34 @@ def wrap_detail(request, wrap_id):
     # Process artists to include image URLs
     processed_top_artists = []
     for artist in top_artists:
-        image_url = artist['images'][0]['url'] if artist.get('images') else None
+        image_url = artist.get('images', [{}])[0].get('url') if artist.get('images') else None
         processed_top_artists.append({
-            'name': artist['name'],
+            'name': artist.get('name', 'Unknown Artist'),
             'image_url': image_url,
         })
 
-    # Process tracks to include album image URLs and preview URLs
+    # Process tracks to include album image URLs
     processed_top_tracks = []
     for track in top_tracks:
-        album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
-        artists = [artist['name'] for artist in track['artists']]
-        preview_url = track.get('preview_url', None)  # Safely get the preview_url
+        album_image_url = track.get('album', {}).get('images', [{}])[0].get('url') if track.get('album') else None
+        artists = [artist.get('name', 'Unknown Artist') for artist in track.get('artists', [])]
+        # preview_url = track.get('preview_url', None)  # Safely get the preview_url
         processed_top_tracks.append({
-            'name': track['name'],
+            'name': track.get('name', 'Unknown Track'),
             'artists': artists,
             'album_image_url': album_image_url,
-            'preview_url': preview_url,  # Include preview_url in processed tracks
+            # 'preview_url': preview_url,  # Include preview_url in processed tracks
         })
 
     # Process playlists to include image URLs
     processed_playlists = []
     for playlist in playlists:
-        image_url = playlist['images'][0]['url'] if playlist.get('images') else None
-        processed_playlists.append({
-            'name': playlist['name'],
-            'image_url': image_url,
-        })
+        if playlist:  # Ensure playlist is not None
+            image_url = playlist.get('images', [{}])[0].get('url') if playlist.get('images') else None
+            processed_playlists.append({
+                'name': playlist.get('name', 'Unknown Playlist'),
+                'image_url': image_url,
+            })
 
     # Convert Markdown insights to HTML
     insights_html = markdown.markdown(wrap.insights) if wrap.insights else None
@@ -144,7 +135,6 @@ def wrap_detail(request, wrap_id):
     }
 
     return render(request, 'users/wrap_detail.html', context)
-
 
 def get_current_holiday():
     today = timezone.now().date()
@@ -222,11 +212,11 @@ def generate_data(request):
     playlists = playlists_response.json()
 
     # Process data
-    processed_top_artists = process_artists(top_artists)  # Reuse existing logic for artists
-    processed_top_tracks = process_tracks(top_tracks)      # Ensure this function includes 'preview_url'
-    processed_playlists = process_playlists(playlists)     # Reuse existing logic for playlists
+    processed_top_artists = process_artists(top_artists)
+    processed_top_tracks = process_tracks(top_tracks)
+    processed_playlists = process_playlists(playlists)
 
-    # Limit to Top 5 Tracks for playback
+    # Limit to Top 5 Tracks
     processed_top_tracks = processed_top_tracks[:5]
 
     # Determine if today is a holiday
@@ -250,7 +240,6 @@ def generate_data(request):
                 f"Playlists: {[playlist['name'] for playlist in processed_playlists]}\n\n"
                 "Provide insights on how someone who listens to this kind of music tends to act, think, and dress."
             )
-        # Replace 'model.generate_content' with your actual method to generate insights
         response = model.generate_content(prompt)
         insights = response.text.strip()
     except Exception as e:
@@ -260,31 +249,28 @@ def generate_data(request):
     insights_html = markdown.markdown(insights)
 
     # Save data with timestamp, insights, and holiday
-    wrap = SpotifyData.objects.create(  # Assign to 'wrap'
+    wrap = SpotifyData.objects.create(
         user=request.user,
         top_artists=top_artists,
         top_tracks=top_tracks,
         playlists=playlists,
         insights=insights,
         timestamp=timezone.now(),
-        holiday=holiday  # Save the holiday
+        holiday=holiday
     )
 
     # Prepare context for the template
     context = {
-        'wrap': wrap,                          # Pass the 'wrap' object to the template
-        'insights_html': insights_html,        # Pass the converted HTML
-        'top_artists': processed_top_artists,  # Processed data for display
-        'top_tracks': processed_top_tracks,    # Processed data with 'preview_url's
-        'playlists': processed_playlists,      # Processed data for display
-        'holiday': holiday,                    # Pass the holiday to the template
+        'wrap': wrap,
+        'insights_html': insights_html,
+        'top_artists': processed_top_artists,
+        'top_tracks': processed_top_tracks,
+        'playlists': processed_playlists,
+        'holiday': holiday,
     }
 
     # Render the 'wrap_detail.html' template
     return render(request, 'users/wrap_detail.html', context)
-
-
-
 
 class ResetPasswordView(SuccessMessageMixin, PasswordResetView):
     template_name = 'users/password_reset.html'
@@ -296,18 +282,14 @@ class ResetPasswordView(SuccessMessageMixin, PasswordResetView):
                       "please make sure you've entered the address you registered with, and check your spam folder."
     success_url = reverse_lazy('users-home')
 
-
 class RegisterView(View):
     form_class = RegisterForm
     initial = {'key': 'value'}
     template_name = 'users/register.html'
 
     def dispatch(self, request, *args, **kwargs):
-        # will redirect to the home page if a user tries to access the register page while logged in
         if request.user.is_authenticated:
             return redirect(to='/')
-
-        # else process dispatch as it otherwise normally would
         return super(RegisterView, self).dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
@@ -319,10 +301,8 @@ class RegisterView(View):
 
         if form.is_valid():
             form.save()
-
             username = form.cleaned_data.get('username')
             messages.success(request, f'Account created for {username}')
-
             return redirect(to='/')
 
         return render(request, self.template_name, {'form': form})
@@ -334,17 +314,10 @@ class CustomLoginView(LoginView):
         remember_me = form.cleaned_data.get('remember_me')
 
         if not remember_me:
-            # set session expiry to 0 seconds. So it will automatically close the session after the browser is closed.
             self.request.session.set_expiry(0)
-
-            # Set session as modified to force data updates/cookie to be saved.
             self.request.session.modified = True
 
-        # else browser session will be as long as the session cookie time "SESSION_COOKIE_AGE" defined in settings.py
         return super(CustomLoginView, self).form_valid(form)
-
-
-
 
 @login_required
 def profile(request):
@@ -368,8 +341,6 @@ class ChangePasswordView(SuccessMessageMixin, PasswordChangeView):
     success_message = "Successfully Changed Your Password"
     success_url = reverse_lazy('users-home')
 
-
-
 def process_artists(artists_data):
     processed_artists = []
     for artist in artists_data.get('items', []):
@@ -382,21 +353,23 @@ def process_tracks(tracks_data):
     for track in tracks_data.get('items', []):
         album_image_url = track['album']['images'][0]['url'] if track['album'].get('images') else None
         artists = [artist['name'] for artist in track['artists']]
-        preview_url = track.get('preview_url', '').strip() # Fetch the preview URL
+        # preview_url = track.get('preview_url', '').strip()  # Fetch the preview URL
         processed_tracks.append({
             'name': track['name'],
             'artists': artists,
             'album_image_url': album_image_url,
-            'preview_url': preview_url,  # Include the preview URL
+            # 'preview_url': preview_url,  # Include the preview URL
         })
     return processed_tracks
 
 def process_playlists(playlists_data):
     processed_playlists = []
     for playlist in playlists_data.get('items', []):
-        image_url = playlist['images'][0]['url'] if playlist.get('images') else None
-        processed_playlists.append({'name': playlist['name'], 'image_url': image_url})
+        if playlist:  # Ensure playlist is not None
+            image_url = playlist.get('images', [{}])[0].get('url') if playlist.get('images') else None
+            processed_playlists.append({'name': playlist.get('name', 'Unknown Playlist'), 'image_url': image_url})
     return processed_playlists
+
 
 @login_required
 def send_duo_invitation(request):
@@ -429,7 +402,6 @@ def invitations_received(request):
     context = {'invitations': invitations}
     return render(request, 'users/invitations_received.html', context)
 
-@login_required
 @login_required
 def accept_duo_invitation(request, invitation_id):
     invitation = get_object_or_404(DuoWrapInvitation, id=invitation_id, receiver=request.user, status='pending')
@@ -483,7 +455,6 @@ def generate_duo_wrap(request, invitation_id):
     processed_playlists = process_playlists(combined_playlists)
 
     # Generate insights using Gemini
-    # Generate insights using Gemini
     try:
         prompt = (
             "Based on the combined Spotify data of two users:\n"
@@ -513,7 +484,7 @@ def generate_duo_wrap(request, invitation_id):
     context = {
         'duo_wrap': duo_wrap,
         'top_artists': processed_top_artists,
-        'top_tracks': processed_top_tracks,  # Top 5 tracks for playback
+        'top_tracks': processed_top_tracks,
         'playlists': processed_playlists,
         'insights_html': markdown.markdown(insights) if insights else None,
     }
@@ -531,5 +502,3 @@ def duo_wrap_detail(request, duo_wrap_id):
         'insights_html': markdown.markdown(duo_wrap.insights) if duo_wrap.insights else None,
     }
     return render(request, 'users/duo_wrap_detail.html', context)
-
-

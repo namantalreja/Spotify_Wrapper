@@ -1,6 +1,6 @@
 # Spotify_Wrapper
 
-Within our Spotify Wrapped Project, users are able to find their Spotify listening statistics similar to Spotify Wrapped using Django and the Spotify API. They can click a button to generate their Spotify Wrapped after logging into their Spotify account, and then discover different features.
+Our potify Wrapped Project allows users to find their Spotify listening statistics similar to Spotify Wrapped using Django and the Spotify API. They can click a button to generate their Spotify Wrapped after logging into their Spotify account, and then discover different features.
 
 ## Motivation
 

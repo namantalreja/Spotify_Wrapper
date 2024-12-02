@@ -4,66 +4,69 @@
 {% block title %}Your Spotify Wraps{% endblock title%}
 
 {% block content %}
-    <div class="container mt-5">
-        <h1 class="mb-4">Your Spotify Wraps</h1>
+<div class="container mt-5">
+    <h1 class="mb-4">Your Spotify Wraps</h1>
 
-        <!-- Action Buttons -->
-        <div class="button-group mb-4">
-            <a href="{% url 'generate_data' %}" class="btn btn-success">Generate New Wrap</a>
-            <a href="{% url 'send_duo_invitation' %}" class="btn btn-warning">Send a Duo Wrap Invitation</a>
-            <a href="{% url 'invitations_received' %}" class="btn btn-info">View Pending Invitations</a>
-        </div>
-
-        <!-- Individual Wraps Section -->
-        <h2 class="mt-5">Individual Wraps</h2>
-        {% if wraps %}
-            <div class="row">
-                {% for wrap in wraps %}
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100">
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">Wrapped on {{ wrap.timestamp|date:"F j, Y" }}</h5>
-                                <p class="card-text">
-                                    <!-- Optional: Include summary stats or highlights -->
-                                    Top Artists: {{ wrap.top_artists.items|length }}<br>
-                                    Top Tracks: {{ wrap.top_tracks.items|length }}<br>
-                                    Playlists: {{ wrap.playlists.items|length }}
-                                </p>
-                                <a href="{% url 'wrap_detail' wrap.id %}" class="mt-auto btn btn-primary">View Details</a>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="text-center text-muted">You have not generated any Spotify Wraps yet.</p>
-        {% endif %}
-
-        <!-- Duo Wraps Section -->
-        <h2 class="mt-5">Duo Wraps</h2>
-        {% if duo_wraps %}
-            <div class="row">
-                {% for duo_wrap in duo_wraps %}
-                    <div class="col-md-4 mb-4">
-                        <div class="card h-100">
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title">Duo Wrapped on {{ duo_wrap.timestamp|date:"F j, Y" }}</h5>
-                                <p class="card-text">
-                                    With:
-                                    {% for user in duo_wrap.users.all %}
-                                        {% if user != request.user %}
-                                            <strong>{{ user.username }}</strong>{% if not forloop.last %}, {% endif %}
-                                        {% endif %}
-                                    {% endfor %}
-                                </p>
-                                <a href="{% url 'duo_wrap_detail' duo_wrap.id %}" class="mt-auto btn btn-primary">View Duo Wrap</a>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% else %}
-            <p class="text-center text-muted">You have not generated any Duo Wraps yet.</p>
-        {% endif %}
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-between flex-wrap mb-4">
+        <a href="{% url 'generate_data' %}" class="btn btn-success mb-2">Generate New Wrap</a>
+        <a href="{% url 'send_duo_invitation' %}" class="btn btn-warning mb-2">Send a Duo Wrap Invitation</a>
+        <a href="{% url 'invitations_received' %}" class="btn btn-info mb-2">View Pending Invitations</a>
     </div>
+
+    <!-- Individual Wraps Section -->
+    <h2 class="mt-5">Individual Wraps</h2>
+    {% if wraps %}
+        <div class="row">
+            {% for wrap in wraps %}
+                <div class="col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100 {% if wrap.holiday %}border-holiday {{ wrap.holiday|lower }}{% endif %}">
+                        <div class="card-body d-flex flex-column">
+                            {% if wrap.holiday %}
+                                <h5 class="card-title">{{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h5>
+                            {% else %}
+                                <h5 class="card-title">Wrapped on {{ wrap.timestamp|date:"F j, Y" }}</h5>
+                            {% endif %}
+                            <p class="card-text">
+                                <strong>Top Artists:</strong> {{ wrap.top_artists.items|length }}<br>
+                                <strong>Top Tracks:</strong> {{ wrap.top_tracks.items|length }}<br>
+                                <strong>Playlists:</strong> {{ wrap.playlists.items|length }}
+                            </p>
+                            <a href="{% url 'wrap_detail' wrap.id %}" class="mt-auto btn btn-primary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-center text-muted">You have not generated any Spotify Wraps yet.</p>
+    {% endif %}
+
+    <!-- Duo Wraps Section -->
+    <h2 class="mt-5">Duo Wraps</h2>
+    {% if duo_wraps %}
+        <div class="row">
+            {% for duo_wrap in duo_wraps %}
+                <div class="col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">Duo Wrapped on {{ duo_wrap.timestamp|date:"F j, Y" }}</h5>
+                            <p class="card-text">
+                                <strong>With:</strong>
+                                {% for user in duo_wrap.users.all %}
+                                    {% if user != request.user %}
+                                        {{ user.username }}{% if not forloop.last %}, {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            </p>
+                            <a href="{% url 'duo_wrap_detail' duo_wrap.id %}" class="mt-auto btn btn-primary">View Duo Wrap</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-center text-muted">You have not generated any Duo Wraps yet.</p>
+    {% endif %}
+</div>
 {% endblock content %}

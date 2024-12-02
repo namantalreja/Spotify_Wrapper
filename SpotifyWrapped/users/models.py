@@ -27,16 +27,25 @@ class Profile(models.Model):
             img.save(self.avatar.path)
 
             
+# users/models.py
+
+from django.db import models
+from django.contrib.auth.models import User
+
 class SpotifyData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     top_artists = models.JSONField()
     top_tracks = models.JSONField()
     playlists = models.JSONField()
-    insights = models.TextField(blank=True, null=True)  # New field for insights
+    insights = models.TextField(blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    holiday = models.CharField(max_length=20, blank=True, null=True)  # Add this field
 
     def __str__(self):
+        if self.holiday:
+            return f"{self.user.username} - {self.holiday} Wrap - {self.timestamp}"
         return f"{self.user.username} - {self.timestamp}"
+
     
     
 class DuoWrapInvitation(models.Model):

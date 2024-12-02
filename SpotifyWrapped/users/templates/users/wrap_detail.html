@@ -1,11 +1,26 @@
 <!-- templates/users/wrap_detail.html -->
 {% extends "users/base.html" %}
+{% load static %}
 
-{% block title %}Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}{% endblock title %}
+{% block title %}
+    {% if wrap.holiday %}
+        {{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }}
+    {% else %}
+        Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}
+    {% endif %}
+{% endblock title %}
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="mb-4">Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h1>
+    {% if wrap.holiday %}
+        <div class="holiday-banner {{ wrap.holiday|lower }}">
+            <h1 class="mb-4">{{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h1>
+            <!-- Optional: Include a holiday-themed banner image -->
+            <img src="{% static 'images/{{ wrap.holiday|lower }}_banner.jpg' %}" alt="{{ wrap.holiday }} Banner" class="img-fluid mb-4">
+        </div>
+    {% else %}
+        <h1 class="mb-4">Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h1>
+    {% endif %}
 
     <!-- Insights Section -->
     <section class="mb-5">
@@ -17,6 +32,27 @@
         {% else %}
             <p class="text-muted">No insights available.</p>
         {% endif %}
+    </section>
+
+    <!-- Social Media Share Buttons Section -->
+    <section class="mb-5">
+        <h2>Share Your Wrap</h2>
+        <div class="button-group">
+            <!-- Instagram Share Button (Note: Instagram sharing requires different handling) -->
+            <a href="#" onclick="alert('To share on Instagram, please download the image and share it manually.');" class="btn btn-danger mb-2" role="button">
+                <i class="fab fa-instagram"></i> Share on Instagram
+            </a>
+            
+            <!-- LinkedIn Share Button -->
+            <a href="{{ linkedin_url }}" target="_blank" class="btn btn-primary mb-2" role="button">
+                <i class="fab fa-linkedin"></i> Share on LinkedIn
+            </a>
+
+            <!-- X (Twitter) Share Button -->
+            <a href="{{ twitter_url }}" target="_blank" class="btn btn-info mb-2" role="button">
+                <i class="fab fa-twitter"></i> Share on X (Twitter)
+            </a>
+        </div>
     </section>
 
     <!-- Top Artists Section -->
@@ -50,16 +86,20 @@
         {% if top_tracks %}
             <div class="row">
                 {% for track in top_tracks %}
-                    <div class="col-md-3 col-sm-6 mb-4">
+                    <div class="col-md-6 col-lg-4 mb-4">
                         <div class="card h-100">
+                            <!-- Album Art -->
                             {% if track.album_image_url %}
                                 <img src="{{ track.album_image_url }}" class="card-img-top" alt="{{ track.name }} Album Art">
                             {% else %}
                                 <img src="https://via.placeholder.com/150" class="card-img-top" alt="No Image Available">
                             {% endif %}
-                            <div class="card-body">
+                            
+                            <div class="card-body d-flex flex-column">
+                                <!-- Track Name -->
                                 <h5 class="card-title text-center">{{ track.name }}</h5>
                                 <p class="card-text text-center">by {{ track.artists|join:", " }}</p>
+                                <!-- Removed audio preview code -->
                             </div>
                         </div>
                     </div>

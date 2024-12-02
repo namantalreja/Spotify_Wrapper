@@ -4,9 +4,9 @@
 
 {% block title %}
     {% if wrap.holiday %}
-        {{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }} ({{ wrap.get_time_range_display }})
+        {{ wrap.holiday }} Wrap - {{ wrap.timestamp|date:"F j, Y" }}
     {% else %}
-        Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }} ({{ wrap.get_time_range_display }})
+        Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}
     {% endif %}
 {% endblock title %}
 
@@ -21,9 +21,6 @@
     {% else %}
         <h1 class="mb-4">Spotify Wrap - {{ wrap.timestamp|date:"F j, Y" }}</h1>
     {% endif %}
-
-    <!-- Display Time Range -->
-    <p><strong>Time Range:</strong> {{ wrap.get_time_range_display }}</p>
 
     <!-- Insights Section -->
     <section class="mb-5">
@@ -41,18 +38,18 @@
     <section class="mb-5">
         <h2>Share Your Wrap</h2>
         <div class="button-group">
-            <!-- Instagram Share Button (encourages sharing with a pre-generated image) -->
-            <a href="https://www.instagram.com" target="_blank" class="btn btn-danger mb-2" role="button">
+            <!-- Instagram Share Button (Note: Instagram sharing requires different handling) -->
+            <a href="#" onclick="alert('To share on Instagram, please download the image and share it manually.');" class="btn btn-danger mb-2" role="button">
                 <i class="fab fa-instagram"></i> Share on Instagram
             </a>
             
             <!-- LinkedIn Share Button -->
-            <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ request.build_absolute_uri }}" target="_blank" class="btn btn-primary mb-2" role="button">
+            <a href="{{ linkedin_url }}" target="_blank" class="btn btn-primary mb-2" role="button">
                 <i class="fab fa-linkedin"></i> Share on LinkedIn
             </a>
 
             <!-- X (Twitter) Share Button -->
-            <a href="https://twitter.com/intent/tweet?text=Check%20out%20my%20Spotify%20Wrap!%20{{ request.build_absolute_uri }}" target="_blank" class="btn btn-info mb-2" role="button">
+            <a href="{{ twitter_url }}" target="_blank" class="btn btn-info mb-2" role="button">
                 <i class="fab fa-twitter"></i> Share on X (Twitter)
             </a>
         </div>
@@ -102,16 +99,7 @@
                                 <!-- Track Name -->
                                 <h5 class="card-title text-center">{{ track.name }}</h5>
                                 <p class="card-text text-center">by {{ track.artists|join:", " }}</p>
-                                
-                                <!-- Audio Player for Preview -->
-                                {% if track.preview_url %}
-                                    <audio controls style="width: 100%; margin-top: auto;">
-                                        <source src="{{ track.preview_url }}" type="audio/mpeg">
-                                        Your browser does not support the audio element.
-                                    </audio>
-                                {% else %}
-                                    <p class="text-muted text-center">Preview not available.</p>
-                                {% endif %}
+                                <!-- Removed audio preview code -->
                             </div>
                         </div>
                     </div>

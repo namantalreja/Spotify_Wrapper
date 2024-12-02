@@ -1130,11 +1130,19 @@ def decline_duo_invitation(request, invitation_id):
     return redirect('invitations_received')
 
 def merge_spotify_data(data1, data2):
-    items1 = data1.get('items', [])
-    items2 = data2.get('items', [])
-    combined_items = items1 + items2
-    unique_items = {item['id']: item for item in combined_items}.values()
-    return {'items': list(unique_items)}
+    if data1 and data2:
+        items1 = data1.get('items', [])
+        items2 = data2.get('items', [])
+        combined_items = items1 + items2
+        unique_items = {}
+        if combined_items:
+            unique_items = {
+            item['id']: item
+            for item in combined_items
+            if item 
+            }.values()
+        return {'items': list(unique_items)}
+    return {'items': []}
 
 def extract_names_from_items(items):
     return [item['name'] for item in items]

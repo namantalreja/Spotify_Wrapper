@@ -625,17 +625,19 @@ def wrap_detail(request, wrap_id):
             'name': track['name'],
             'artists': artists,
             'album_image_url': album_image_url,
-            '#preview_url': preview_url,  # Include preview_url in processed tracks
+            'preview_url': '',  # Include preview_url in processed tracks
         })
 
     # Process playlists to include image URLs
     processed_playlists = []
     for playlist in playlists:
-        image_url = playlist['images'][0]['url'] if playlist.get('images') else None
-        processed_playlists.append({
-            'name': playlist['name'],
-            'image_url': image_url,
-        })
+        
+        if playlist:
+            image_url = playlist['images'][0]['url'] if playlist.get('images') else None
+            processed_playlists.append({
+                'name': playlist['name'],
+                'image_url': image_url,
+            })
 
     # Convert Markdown insights to HTML
     insights_html = markdown.markdown(wrap.insights) if wrap.insights else None

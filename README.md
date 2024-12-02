@@ -32,4 +32,4 @@ https://atlantafoodfindermanagement.atlassian.net/jira/core/projects/SW/board
 
 # Project Demo
 
-Available on our team website under the Project 2 page.
+https://drive.google.com/file/d/1INEbpIct9dac3PGPNYaDJGTqeKV4oo1F/view?usp=sharing

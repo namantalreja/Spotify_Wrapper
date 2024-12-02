@@ -16,7 +16,7 @@ We used the Spotify API.
 
 ## Installation
 
-Install Python 3.9, Django 4.2.16, pillow 10.4.0, python-dotenv 1.0.1, requests 2.32.3
+Install Python 3.9, Django 4.2.16, pillow 10.4.0, python-dotenv 1.0.1, requests 2.32.3, google-generativeai 0.8.3, Markdown 3.7
 
 ## Team Website
 
